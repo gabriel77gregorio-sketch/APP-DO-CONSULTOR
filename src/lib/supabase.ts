@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'placeholder';
 
-if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Missing Supabase env variables');
+if (!import.meta.env.PUBLIC_SUPABASE_URL || !import.meta.env.PUBLIC_SUPABASE_ANON_KEY) {
+    console.error('CRITICAL ERROR: Missing Supabase environment variables! Check Vercel project settings.');
 }
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
