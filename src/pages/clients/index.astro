@@ -28,20 +28,32 @@ if (Astro.request.method === 'POST') {
       email_confirm: true,
     }) ?? { data: null, error: new Error('Admin API não disponível no lado do cliente') };
 
-    if (authError) {
-      // Tenta apenas criar o registro (o usuário pode já existir ou usar magic link)
-      formError = `Aviso: ${authError.message}. O cliente foi adicionado mas pode precisar redefinir a senha.`;
-    }
-
-    // Insere o cliente (trigger populará os 12 passos)
-    const { error: insertError } = await supabase
-      .from('clients')
-      .insert({ name, client_email: clientEmail, consultant_id: userId, sector });
-
-    if (insertError) {
-      formError = insertError.message;
+    if (authError || !newUser?.user) { // Check newUser.user for null/undefined
+      formError = authError?.message ?? 'Erro ao criar conta do cliente.';
     } else {
-      return Astro.redirect('/clients');
+      // 2. Cria record do cliente no banco
+      const { data: client, error: clientError } = await supabase
+        .from('clients')
+        .insert({
+          consultant_id: userId,
+          name,
+          client_email: clientEmail, // Changed 'email' to 'clientEmail'
+          sector,
+        })
+        .select()
+        .single();
+
+      if (clientError || !client) {
+        formError = clientError?.message ?? 'Erro ao salvar dados do cliente.';
+      } else {
+        // 3. Atualiza o perfil recém-criado (pelo trigger) com role 'client'
+        // Usamos o supabaseAdmin para garantir que o Master/Consultor tenha permissão de mudar o perfil
+        if (supabaseAdmin) {
+          await supabaseAdmin.from('profiles').update({ role: 'client', full_name: name }).eq('id', newUser.user.id);
+        }
+        successMsg = `Cliente ${name} cadastrado com sucesso!`;
+        return Astro.redirect('/clients'); // Recarrega
+      }
     }
   }
 }

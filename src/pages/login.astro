@@ -66,24 +66,33 @@ if (Astro.request.method === 'POST') {
     });
 
     const user = session.user;
-    // Detecta role
-    const { data: profile } = await supabase
+    // Pega o papel do usuário na tabela centralizada de perfis
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, role')
       .eq('id', user.id)
       .single();
-    if (profile) {
+
+    if (profileError || !profile) {
+      errorMessage = 'Perfil não encontrado. Entre em contato com o administrador.';
+    } else {
+      // Redireciona baseado no papel (role)
+      if (profile.role === 'master') {
+        return Astro.redirect('/dashboard'); // Master vai pro dashboard
+      }
+      if (profile.role === 'consultant') {
+        return Astro.redirect('/dashboard'); // Consultor vai pro dashboard
+      }
+      if (profile.role === 'client') {
+        const { data: client } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('client_email', user.email ?? '')
+          .single();
+        if (client) return Astro.redirect(`/roadmap/${client.id}`);
+      }
       return Astro.redirect('/dashboard');
     }
-    const { data: client } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('client_email', user.email ?? '')
-      .single();
-    if (client) {
-      return Astro.redirect(`/roadmap/${client.id}`);
-    }
-    return Astro.redirect('/dashboard');
   }
 }
 ---
