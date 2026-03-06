@@ -1,0 +1,170 @@
+---
+export const prerender = false;
+import ConsultantLayout from '../../layouts/ConsultantLayout.astro';
+import { supabase, calcProgress, type Client, type RoadmapStep, type Task, type Document } from '../../lib/supabase';
+import StepEditor from '../../components/consultant/StepEditor';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/clients');
+
+const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
+const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
+
+const { data: authData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+const userId = authData?.session?.user?.id ?? '';
+
+// Busca o cliente
+const { data: client, error: clientError } = await supabase
+  .from('clients')
+  .select('*')
+  .eq('id', id)
+  .eq('consultant_id', userId)
+  .single();
+
+if (clientError || !client) return Astro.redirect('/clients');
+
+// Busca steps, tasks e documentos em paralelo
+const [{ data: steps = [] }, { data: allTasks = [] }, { data: documents = [] }] = await Promise.all([
+  supabase.from('roadmap_steps').select('*').eq('client_id', id).order('step_number'),
+  supabase.from('tasks').select('*').eq('client_id', id).order('created_at'),
+  supabase.from('documents').select('*').eq('client_id', id).order('uploaded_at', { ascending: false }),
+]);
+
+const progress = calcProgress((steps ?? []) as RoadmapStep[]);
+
+// Handle upload de documento
+if (Astro.request.method === 'POST') {
+  const fd = await Astro.request.formData();
+  const file = fd.get('file') as File | null;
+  
+  if (file && file.size > 0) {
+    const ext = file.name.split('.').pop() ?? 'bin';
+    const storagePath = `${id}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    
+    const { error: storageError } = await supabase.storage
+      .from('vault')
+      .upload(storagePath, buffer, { contentType: file.type, upsert: false });
+
+    if (!storageError) {
+      await supabase.from('documents').insert({
+        client_id: id,
+        name: file.name,
+        storage_path: storagePath,
+        file_size: file.size,
+        file_type: file.type,
+      });
+    }
+    return Astro.redirect(`/clients/${id}`);
+  }
+}
+---
+
+<ConsultantLayout title={`Roadmap · ${client.name}`} activePage="clients">
+  <div class="p-8 animate-fade-in">
+    <!-- Header -->
+    <div class="flex items-start gap-4 mb-8">
+      <a href="/clients" class="text-slate-500 hover:text-white transition-colors mt-1">← Voltar</a>
+      <div class="flex-1">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-white"
+            style="background: linear-gradient(135deg, rgba(124,58,237,0.5), rgba(109,40,217,0.7));">
+            {client.name.charAt(0)}
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold text-white">{client.name}</h1>
+            {client.sector && <p class="text-slate-400 text-sm">{client.sector}</p>}
+          </div>
+        </div>
+      </div>
+      <!-- Progresso geral -->
+      <div class="glass px-5 py-3 text-right">
+        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Progresso</p>
+        <p class="text-2xl font-bold gradient-text">{progress}%</p>
+        <div class="progress-bar w-32 mt-1">
+          <div class="progress-fill" style={`width: ${progress}%`}></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <!-- Coluna principal: roadmap steps -->
+      <div class="xl:col-span-2 space-y-3">
+        <h2 class="text-white font-bold text-lg mb-4">📍 Jornada dos 12 Encontros</h2>
+        {(steps as RoadmapStep[]).map((step, idx) => (
+          <StepEditor
+            client:load
+            step={step}
+            tasks={(allTasks as Task[]).filter(t => t.step_number === step.step_number)}
+            isInitiallyOpen={step.status === 'current'}
+          />
+        ))}
+      </div>
+
+      <!-- Sidebar direita: Cofre + Info do cliente -->
+      <div class="space-y-5">
+        <!-- Info do Cliente -->
+        <div class="glass p-5">
+          <h3 class="text-white font-bold mb-3">👤 Acesso do Cliente</h3>
+          <div class="space-y-2">
+            <div>
+              <p class="text-slate-500 text-xs uppercase tracking-wider">Email</p>
+              <p class="text-slate-200 text-sm">{client.client_email}</p>
+            </div>
+            <div>
+              <p class="text-slate-500 text-xs uppercase tracking-wider">Link do Roadmap</p>
+              <p class="text-brand-400 text-xs break-all">/roadmap/{client.id}</p>
+            </div>
+            <div>
+              <p class="text-slate-500 text-xs uppercase tracking-wider">Cliente desde</p>
+              <p class="text-slate-300 text-sm">{new Date(client.created_at).toLocaleDateString('pt-BR')}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cofre de Documentos -->
+        <div class="glass p-5">
+          <h3 class="text-white font-bold mb-4">🗄️ Cofre de Documentos</h3>
+          
+          {/* Upload */}
+          <form method="POST" enctype="multipart/form-data" class="mb-4">
+            <label class="flex flex-col items-center justify-center w-full p-4 rounded-xl cursor-pointer transition-all"
+              style="border: 2px dashed rgba(124,58,237,0.3); background: rgba(124,58,237,0.04);"
+              onmouseenter="this.style.borderColor='rgba(124,58,237,0.6)'"
+              onmouseleave="this.style.borderColor='rgba(124,58,237,0.3)'">
+              <span class="text-2xl mb-1">📁</span>
+              <span class="text-slate-400 text-xs text-center">Clique para enviar um documento</span>
+              <input type="file" name="file" class="hidden" onchange="this.form.submit()" />
+            </label>
+          </form>
+
+          {/* Lista de documentos */}
+          {(documents as Document[]).length === 0 ? (
+            <p class="text-slate-600 text-xs text-center py-2">Nenhum documento enviado ainda</p>
+          ) : (
+            <div class="space-y-2">
+              {(documents as Document[]).map((doc) => (
+                <div class="flex items-center gap-3 p-2.5 rounded-xl" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);">
+                  <span class="text-base flex-shrink-0">
+                    {doc.file_type?.includes('pdf') ? '📄' : doc.file_type?.includes('image') ? '🖼️' : doc.file_type?.includes('sheet') || doc.name.endsWith('.xlsx') ? '📊' : '📎'}
+                  </span>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-slate-300 text-xs truncate">{doc.name}</p>
+                    <p class="text-slate-600 text-xs">
+                      {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : ''} · {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                  <a
+                    href={`/api/download?path=${encodeURIComponent(doc.storage_path)}`}
+                    class="text-brand-400 hover:text-brand-300 text-xs flex-shrink-0"
+                    title="Download"
+                  >↓</a>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  </div>
+</ConsultantLayout>

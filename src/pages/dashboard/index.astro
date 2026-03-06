@@ -1,0 +1,148 @@
+---
+export const prerender = false;
+import ConsultantLayout from '../../layouts/ConsultantLayout.astro';
+import { supabase, calcProgress, getSemaforoStatus, type Client, type RoadmapStep, type Task } from '../../lib/supabase';
+
+const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
+const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
+
+const { data: authData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+const userId = authData?.session?.user?.id ?? '';
+
+// Busca clientes do consultor
+const { data: clients = [] } = await supabase
+  .from('clients')
+  .select('*')
+  .eq('consultant_id', userId)
+  .order('created_at', { ascending: false });
+
+// Para cada cliente, busca passos e tasks
+type ClientWithStatus = Client & {
+  progress: number;
+  semaforo: 'green' | 'red' | 'yellow';
+  currentStepTitle: string;
+};
+
+const clientsWithStatus: ClientWithStatus[] = await Promise.all(
+  (clients ?? []).map(async (client: Client) => {
+    const { data: steps = [] } = await supabase
+      .from('roadmap_steps')
+      .select('*')
+      .eq('client_id', client.id);
+    const { data: tasks = [] } = await supabase
+      .from('tasks')
+      .select('*')
+      .eq('client_id', client.id);
+    
+    const s = steps ?? [];
+    const t = tasks ?? [];
+    const progress = calcProgress(s as RoadmapStep[]);
+    const semaforo = getSemaforoStatus(s as RoadmapStep[], t as Task[]);
+    const currentStep = (s as RoadmapStep[]).find(st => st.status === 'current');
+    
+    return {
+      ...client,
+      progress,
+      semaforo,
+      currentStepTitle: currentStep?.title ?? 'Concluído',
+    };
+  })
+);
+
+// Métricas
+const totalClients = clientsWithStatus.length;
+const greenClients = clientsWithStatus.filter(c => c.semaforo === 'green').length;
+const redClients = clientsWithStatus.filter(c => c.semaforo === 'red').length;
+const avgProgress = totalClients > 0
+  ? Math.round(clientsWithStatus.reduce((acc, c) => acc + c.progress, 0) / totalClients)
+  : 0;
+---
+
+<ConsultantLayout title="Dashboard" activePage="dashboard">
+  <div class="p-8 animate-fade-in">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-2xl font-bold text-white">Visão Geral</h1>
+        <p class="text-slate-400 text-sm mt-1">Semáforo da sua carteira de clientes</p>
+      </div>
+      <a href="/clients" class="btn-primary">
+        <span>🏢</span> Gerenciar Clientes
+      </a>
+    </div>
+
+    <!-- Métricas -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div class="glass p-5">
+        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Total de Clientes</p>
+        <p class="text-3xl font-bold text-white">{totalClients}</p>
+        <p class="text-slate-500 text-xs mt-1">empresas na carteira</p>
+      </div>
+      <div class="glass p-5">
+        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Progresso Médio</p>
+        <p class="text-3xl font-bold gradient-text">{avgProgress}%</p>
+        <div class="progress-bar mt-2">
+          <div class="progress-fill" style={`width: ${avgProgress}%`}></div>
+        </div>
+      </div>
+      <div class="glass p-5">
+        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Status da Carteira</p>
+        <div class="flex items-center gap-3 mt-1">
+          <span class="flex items-center gap-1.5 text-sm font-semibold" style="color: #22c55e;">
+            <span class="semaforo-green"></span> {greenClients} em dia
+          </span>
+          <span class="flex items-center gap-1.5 text-sm font-semibold" style="color: #ef4444;">
+            <span class="semaforo-red"></span> {redClients} atrasados
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Grid Semáforo -->
+    {clientsWithStatus.length === 0 ? (
+      <div class="glass p-16 text-center">
+        <p class="text-5xl mb-4">🚀</p>
+        <h3 class="text-white font-bold text-lg mb-2">Nenhum cliente ainda</h3>
+        <p class="text-slate-400 text-sm mb-6">Adicione seu primeiro cliente para começar o acompanhamento</p>
+        <a href="/clients" class="btn-primary">Adicionar Primeiro Cliente</a>
+      </div>
+    ) : (
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {clientsWithStatus.map((client) => (
+          <a href={`/clients/${client.id}`} class="glass-hover p-5 block group cursor-pointer">
+            <!-- Header do card -->
+            <div class="flex items-start justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-base font-bold text-white flex-shrink-0"
+                style="background: linear-gradient(135deg, rgba(124,58,237,0.4), rgba(109,40,217,0.6));">
+                {client.name.charAt(0).toUpperCase()}
+              </div>
+              <!-- Semáforo -->
+              <div class="flex items-center gap-2">
+                {client.semaforo === 'green' && <span class="semaforo-green"></span>}
+                {client.semaforo === 'red' && <span class="semaforo-red"></span>}
+                {client.semaforo === 'yellow' && <span class="semaforo-yellow"></span>}
+                <span class="text-xs text-slate-400 font-medium">
+                  {client.semaforo === 'green' && 'Em dia'}
+                  {client.semaforo === 'red' && 'Atrasado'}
+                  {client.semaforo === 'yellow' && 'Atenção'}
+                </span>
+              </div>
+            </div>
+
+            <!-- Info -->
+            <h3 class="text-white font-semibold text-sm mb-1 truncate">{client.name}</h3>
+            <p class="text-slate-500 text-xs truncate mb-3">{client.currentStepTitle}</p>
+
+            <!-- Progresso -->
+            <div class="flex items-center gap-2">
+              <div class="progress-bar flex-1">
+                <div class="progress-fill" style={`width: ${client.progress}%`}></div>
+              </div>
+              <span class="text-xs font-bold text-brand-400 flex-shrink-0">{client.progress}%</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    )}
+  </div>
+</ConsultantLayout>

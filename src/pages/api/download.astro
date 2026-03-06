@@ -1,0 +1,22 @@
+---
+export const prerender = false;
+import { supabase } from '../../lib/supabase';
+
+const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
+const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
+
+await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+
+const storagePath = Astro.url.searchParams.get('path') ?? '';
+if (!storagePath) return new Response('Not found', { status: 404 });
+
+const { data, error } = await supabase.storage
+  .from('vault')
+  .createSignedUrl(storagePath, 60);
+
+if (error || !data?.signedUrl) {
+  return new Response('File not found', { status: 404 });
+}
+
+return Astro.redirect(data.signedUrl);
+---

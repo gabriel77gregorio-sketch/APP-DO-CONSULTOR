@@ -1,0 +1,499 @@
+import { useState, useRef } from 'react';
+import type { RoadmapStep, Task, Document } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
+
+interface Props {
+    steps: RoadmapStep[];
+    tasks: Task[];
+    documents: Document[];
+    clientName: string;
+    clientId: string;
+    progress: number;
+}
+
+const MONTH_COLORS: Record<string, string> = {
+    'Mês 1': '#a78bfa',
+    'Mês 2': '#60a5fa',
+    'Mês 3': '#34d399',
+    'Mês 4': '#f59e0b',
+    'Mês 5': '#f97316',
+    'Mês 6': '#ec4899',
+};
+
+function getMonthColor(monthLabel: string): string {
+    const key = Object.keys(MONTH_COLORS).find(k => monthLabel.startsWith(k));
+    return key ? MONTH_COLORS[key] : '#7c3aed';
+}
+
+function getFileIcon(fileType: string | null, name: string): string {
+    if (!fileType) return '📎';
+    if (fileType.includes('pdf')) return '📄';
+    if (fileType.includes('image')) return '🖼️';
+    if (fileType.includes('sheet') || name.endsWith('.xlsx') || name.endsWith('.csv')) return '📊';
+    if (fileType.includes('word') || name.endsWith('.docx')) return '📝';
+    if (fileType.includes('presentation') || name.endsWith('.pptx')) return '📊';
+    if (fileType.includes('zip') || fileType.includes('rar')) return '🗜️';
+    return '📎';
+}
+
+function ProgressRing({ progress }: { progress: number }) {
+    const radius = 54;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (progress / 100) * circumference;
+
+    return (
+        <div className="relative inline-flex items-center justify-center">
+            <svg width="140" height="140" className="-rotate-90">
+                <circle cx="70" cy="70" r={radius} fill="none" strokeWidth="8"
+                    stroke="rgba(255,255,255,0.06)" />
+                <circle cx="70" cy="70" r={radius} fill="none" strokeWidth="8"
+                    stroke="url(#progressGradient)"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
+                />
+                <defs>
+                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#7c3aed" />
+                        <stop offset="100%" stopColor="#a78bfa" />
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div className="absolute text-center">
+                <span className="text-3xl font-bold text-white">{progress}%</span>
+                <span className="block text-xs text-slate-400">completo</span>
+            </div>
+        </div>
+    );
+}
+
+export default function RoadmapTimeline({
+    steps,
+    tasks: initialTasks,
+    documents: initialDocuments,
+    clientName,
+    clientId,
+    progress,
+}: Props) {
+    const [tasks, setTasks] = useState(initialTasks);
+    const [documents, setDocuments] = useState(initialDocuments);
+    const [activeStep, setActiveStep] = useState<string | null>(
+        steps.find(s => s.status === 'current')?.id ?? null
+    );
+    const [activeTab, setActiveTab] = useState<'roadmap' | 'vault' | 'tasks'>('roadmap');
+
+    // Upload states
+    const [uploading, setUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
+    const [uploadError, setUploadError] = useState('');
+    const [dragOver, setDragOver] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const myTasks = tasks.filter(t => !t.completed);
+    const completedTasks = tasks.filter(t => t.completed);
+
+    const toggleTask = async (taskId: string, current: boolean) => {
+        const { error } = await supabase.from('tasks').update({ completed: !current }).eq('id', taskId);
+        if (!error) {
+            setTasks(ts => ts.map(t => t.id === taskId ? { ...t, completed: !current } : t));
+        }
+    };
+
+    const getDownloadUrl = async (storagePath: string) => {
+        const { data } = await supabase.storage.from('vault').createSignedUrl(storagePath, 300);
+        if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+    };
+
+    const handleFileUpload = async (file: File) => {
+        if (!file || file.size === 0) return;
+
+        // Limite de 50MB
+        if (file.size > 52428800) {
+            setUploadError('Arquivo muito grande. Limite: 50MB');
+            return;
+        }
+
+        setUploading(true);
+        setUploadError('');
+        setUploadProgress(10);
+
+        try {
+            const storagePath = `${clientId}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+
+            setUploadProgress(40);
+
+            const { error: storageError } = await supabase.storage
+                .from('vault')
+                .upload(storagePath, file, { contentType: file.type, upsert: false });
+
+            if (storageError) {
+                setUploadError(`Erro ao enviar: ${storageError.message}`);
+                setUploading(false);
+                setUploadProgress(0);
+                return;
+            }
+
+            setUploadProgress(80);
+
+            // Salva metadados na tabela documents
+            const { data: docData, error: dbError } = await supabase
+                .from('documents')
+                .insert({
+                    client_id: clientId,
+                    name: file.name,
+                    storage_path: storagePath,
+                    file_size: file.size,
+                    file_type: file.type,
+                })
+                .select()
+                .single();
+
+            setUploadProgress(100);
+
+            if (!dbError && docData) {
+                setDocuments(prev => [docData, ...prev]);
+            }
+
+            setTimeout(() => {
+                setUploading(false);
+                setUploadProgress(0);
+            }, 800);
+        } catch (err) {
+            setUploadError('Erro inesperado. Tente novamente.');
+            setUploading(false);
+            setUploadProgress(0);
+        }
+    };
+
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) handleFileUpload(file);
+        e.target.value = '';
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setDragOver(false);
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleFileUpload(file);
+    };
+
+    const currentStep = steps.find(s => s.status === 'current');
+
+    return (
+        <div>
+            {/* Hero Section */}
+            <div className="glass p-8 mb-8 text-center relative overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none"
+                    style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.08) 0%, transparent 70%)' }} />
+                <h1 className="text-3xl font-bold text-white mb-1">{clientName}</h1>
+                <p className="text-slate-400 text-sm mb-6">Sua jornada de transformação em RH</p>
+                <div className="flex justify-center mb-4">
+                    <ProgressRing progress={progress} />
+                </div>
+                {currentStep && (
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-blue-300"
+                        style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                        🔵 Em andamento: Encontro {currentStep.step_number} — {currentStep.title}
+                    </div>
+                )}
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-1 mb-6 p-1 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                {([
+                    { key: 'roadmap', label: '🗺️ Minha Jornada' },
+                    { key: 'tasks', label: `📋 Pendências${myTasks.length > 0 ? ` (${myTasks.length})` : ''}` },
+                    { key: 'vault', label: `🗄️ Cofre (${documents.length})` },
+                ] as { key: 'roadmap' | 'vault' | 'tasks'; label: string }[]).map(tab => (
+                    <button
+                        key={tab.key}
+                        onClick={() => setActiveTab(tab.key)}
+                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab.key ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+                            }`}
+                        style={activeTab === tab.key ? { background: 'rgba(124,58,237,0.25)', color: '#a78bfa' } : {}}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {/* ===== Tab: Roadmap ===== */}
+            {activeTab === 'roadmap' && (
+                <div className="space-y-3">
+                    {steps.map((step, idx) => {
+                        const color = getMonthColor(step.month_label);
+                        const isActive = activeStep === step.id;
+                        const stepTasks = tasks.filter(t => t.step_number === step.step_number);
+
+                        return (
+                            <div key={step.id} className="relative" style={{ opacity: step.status === 'locked' ? 0.4 : 1 }}>
+                                {/* Linha de tempo */}
+                                {idx < steps.length - 1 && (
+                                    <div className="absolute left-5 top-16 w-0.5 h-full z-0"
+                                        style={{ background: step.status === 'completed' ? color : 'rgba(255,255,255,0.08)' }} />
+                                )}
+
+                                <button
+                                    className="w-full text-left glass transition-all duration-300 relative z-10"
+                                    onClick={() => step.status !== 'locked' && setActiveStep(isActive ? null : step.id)}
+                                    style={
+                                        step.status === 'current'
+                                            ? { borderColor: 'rgba(59,130,246,0.4)' }
+                                            : step.status === 'completed'
+                                                ? { borderColor: `${color}30` }
+                                                : {}
+                                    }
+                                >
+                                    <div className="flex items-center gap-4 p-4">
+                                        {/* Ícone */}
+                                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
+                                            style={{
+                                                background:
+                                                    step.status === 'completed'
+                                                        ? `${color}20`
+                                                        : step.status === 'current'
+                                                            ? 'rgba(59,130,246,0.15)'
+                                                            : 'rgba(255,255,255,0.04)',
+                                                color:
+                                                    step.status === 'completed'
+                                                        ? color
+                                                        : step.status === 'current'
+                                                            ? '#60a5fa'
+                                                            : '#475569',
+                                                border: `1px solid ${step.status === 'completed'
+                                                        ? `${color}40`
+                                                        : step.status === 'current'
+                                                            ? 'rgba(59,130,246,0.35)'
+                                                            : 'rgba(255,255,255,0.06)'
+                                                    }`,
+                                            }}>
+                                            {step.status === 'completed' ? '✓' : step.step_number}
+                                        </div>
+
+                                        {/* Info */}
+                                        <div className="flex-1 min-w-0 text-left">
+                                            <p className="text-xs text-slate-500 mb-0.5">{step.month_label}</p>
+                                            <h3 className={`font-semibold text-sm ${step.status === 'locked' ? 'text-slate-600' : 'text-white'}`}>
+                                                Encontro {step.step_number}: {step.title}
+                                            </h3>
+                                        </div>
+
+                                        {step.status !== 'locked' && (
+                                            <span className={`text-slate-500 transition-transform duration-300 ${isActive ? 'rotate-180' : ''}`}>▼</span>
+                                        )}
+                                        {step.status === 'locked' && <span className="text-slate-700 text-lg">🔒</span>}
+                                    </div>
+
+                                    {/* Expandido */}
+                                    {isActive && step.status !== 'locked' && (
+                                        <div className="border-t border-white/5 px-4 pb-4 pt-3 text-left space-y-4">
+                                            <p className="text-slate-400 text-sm">{step.description}</p>
+
+                                            {/* Checkmarks */}
+                                            {step.checkmarks.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Objetivos do Encontro</p>
+                                                    <div className="space-y-1.5">
+                                                        {step.checkmarks.map((c, i) => (
+                                                            <div key={i} className="flex items-center gap-2">
+                                                                <span className={`text-base flex-shrink-0 ${c.checked ? 'text-green-400' : 'text-slate-600'}`}>
+                                                                    {c.checked ? '✅' : '⬜'}
+                                                                </span>
+                                                                <span className={`text-sm ${c.checked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
+                                                                    {c.label}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Notas do consultor */}
+                                            {step.notes && (
+                                                <div className="p-3 rounded-xl"
+                                                    style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
+                                                    <p className="text-xs font-semibold mb-1" style={{ color: '#a78bfa' }}>📝 Nota do Consultor</p>
+                                                    <p className="text-slate-300 text-sm">{step.notes}</p>
+                                                </div>
+                                            )}
+
+                                            {/* Link de entrega */}
+                                            {step.delivery_url && (
+                                                <a href={step.delivery_url} target="_blank" rel="noopener"
+                                                    className="inline-flex items-center gap-2 text-sm transition-colors"
+                                                    style={{ color: '#a78bfa' }}>
+                                                    🔗 Ver Entrega
+                                                </a>
+                                            )}
+
+                                            {/* Pendências do step */}
+                                            {stepTasks.length > 0 && (
+                                                <div>
+                                                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Suas Pendências</p>
+                                                    <div className="space-y-1.5">
+                                                        {stepTasks.map(task => (
+                                                            <label key={task.id} className="flex items-center gap-2.5 cursor-pointer">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={task.completed}
+                                                                    onChange={() => toggleTask(task.id, task.completed)}
+                                                                    className="w-4 h-4 accent-amber-500"
+                                                                />
+                                                                <span className={`text-sm ${task.completed ? 'line-through text-slate-600' : 'text-slate-300'}`}>
+                                                                    {task.description}
+                                                                </span>
+                                                            </label>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* ===== Tab: Pendências ===== */}
+            {activeTab === 'tasks' && (
+                <div className="glass p-6">
+                    <h3 className="text-white font-bold mb-4">📋 Minhas Pendências</h3>
+                    {myTasks.length === 0 && completedTasks.length === 0 && (
+                        <div className="text-center py-12">
+                            <p className="text-4xl mb-3">🎉</p>
+                            <p className="text-slate-500 text-sm">Nenhuma pendência atribuída ainda</p>
+                            <p className="text-slate-600 text-xs mt-1">Seu consultor criará tarefas conforme os encontros evoluem</p>
+                        </div>
+                    )}
+                    {myTasks.length > 0 && (
+                        <div className="space-y-2 mb-5">
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Em aberto</p>
+                            {myTasks.map(task => (
+                                <label key={task.id} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+                                    style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)' }}>
+                                    <input type="checkbox" checked={false} onChange={() => toggleTask(task.id, false)}
+                                        className="w-4 h-4 accent-amber-500 flex-shrink-0" />
+                                    <span className="text-slate-200 text-sm">{task.description}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                    {completedTasks.length > 0 && (
+                        <div className="space-y-2 opacity-50">
+                            <p className="text-xs text-slate-600 font-semibold uppercase tracking-wider mb-2">Concluídas</p>
+                            {completedTasks.map(task => (
+                                <label key={task.id} className="flex items-center gap-3 p-3 rounded-xl cursor-pointer"
+                                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <input type="checkbox" checked={true} onChange={() => toggleTask(task.id, true)}
+                                        className="w-4 h-4 accent-amber-500 flex-shrink-0" />
+                                    <span className="text-slate-600 text-sm line-through">{task.description}</span>
+                                </label>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ===== Tab: Cofre ===== */}
+            {activeTab === 'vault' && (
+                <div className="glass p-6">
+                    <div className="flex items-start justify-between mb-2">
+                        <div>
+                            <h3 className="text-white font-bold">🗄️ Cofre de Documentos</h3>
+                            <p className="text-slate-500 text-xs mt-0.5">Materiais da consultoria e arquivos enviados por você</p>
+                        </div>
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={uploading}
+                            className="btn-primary text-xs px-3 py-2 disabled:opacity-50"
+                        >
+                            {uploading ? '⏳ Enviando...' : '+ Adicionar Arquivo'}
+                        </button>
+                    </div>
+
+                    {/* Input hidden */}
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        className="hidden"
+                        onChange={handleFileSelect}
+                        accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.gif,.zip,.txt,.csv"
+                    />
+
+                    {/* Barra de progresso de upload */}
+                    {uploading && (
+                        <div className="mb-4 p-3 rounded-xl" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-xs text-slate-400">Enviando arquivo...</span>
+                                <span className="text-xs font-bold" style={{ color: '#a78bfa' }}>{uploadProgress}%</span>
+                            </div>
+                            <div className="progress-bar">
+                                <div className="progress-fill" style={{ width: `${uploadProgress}%`, transition: 'width 0.3s ease' }} />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Erro de upload */}
+                    {uploadError && (
+                        <div className="mb-4 px-4 py-3 rounded-xl text-red-400 text-xs"
+                            style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                            ⚠️ {uploadError}
+                        </div>
+                    )}
+
+                    {/* Área de drag & drop */}
+                    <div
+                        className="mb-5 rounded-xl p-6 text-center cursor-pointer transition-all"
+                        style={{
+                            border: `2px dashed ${dragOver ? 'rgba(124,58,237,0.7)' : 'rgba(124,58,237,0.25)'}`,
+                            background: dragOver ? 'rgba(124,58,237,0.08)' : 'rgba(124,58,237,0.03)',
+                        }}
+                        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                        onDragLeave={() => setDragOver(false)}
+                        onDrop={handleDrop}
+                        onClick={() => fileInputRef.current?.click()}
+                    >
+                        <p className="text-2xl mb-1">📂</p>
+                        <p className="text-slate-400 text-xs">Arraste um arquivo ou <span style={{ color: '#a78bfa' }}>clique para selecionar</span></p>
+                        <p className="text-slate-600 text-xs mt-1">PDF, Word, Excel, PowerPoint, imagens · Máx. 50MB</p>
+                    </div>
+
+                    {/* Lista de documentos */}
+                    {documents.length === 0 ? (
+                        <div className="text-center py-6">
+                            <p className="text-slate-600 text-sm">Nenhum documento ainda</p>
+                            <p className="text-slate-700 text-xs mt-1">Envie arquivos da consultoria ou faça upload acima</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {documents.map(doc => (
+                                <button
+                                    key={doc.id}
+                                    onClick={() => getDownloadUrl(doc.storage_path)}
+                                    className="flex items-center gap-3 p-4 rounded-xl text-left glass-hover group"
+                                >
+                                    <span className="text-2xl flex-shrink-0">
+                                        {getFileIcon(doc.file_type, doc.name)}
+                                    </span>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-slate-200 text-sm font-medium truncate">{doc.name}</p>
+                                        <p className="text-slate-500 text-xs">
+                                            {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB · ` : ''}
+                                            {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                                        </p>
+                                    </div>
+                                    <span className="text-slate-600 group-hover:text-brand-400 transition-colors text-sm flex-shrink-0">⬇</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}

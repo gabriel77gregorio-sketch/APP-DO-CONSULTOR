@@ -1,0 +1,98 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import { supabase } from '../lib/supabase';
+
+export interface Props {
+  title?: string;
+  activePage?: string;
+}
+
+const { title, activePage } = Astro.props;
+
+const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
+const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
+
+const { data } = await supabase.auth.setSession({
+  access_token: accessToken,
+  refresh_token: refreshToken,
+});
+
+const user = data?.session?.user;
+
+// Busca o perfil do consultor
+let profile = { full_name: user?.email ?? 'Consultor', avatar_url: null as string | null };
+if (user) {
+  const { data: p } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url')
+    .eq('id', user.id)
+    .single();
+  if (p) profile = p;
+}
+
+const initials = profile.full_name
+  .split(' ')
+  .slice(0, 2)
+  .map((w: string) => w[0])
+  .join('')
+  .toUpperCase();
+
+const navLinks = [
+  { href: '/dashboard', label: 'Visão Geral', icon: '⚡', key: 'dashboard' },
+  { href: '/clients', label: 'Meus Clientes', icon: '🏢', key: 'clients' },
+];
+---
+
+<BaseLayout title={title}>
+  <div class="flex min-h-screen">
+    <!-- Sidebar -->
+    <aside class="w-64 flex-shrink-0 flex flex-col" style="background: linear-gradient(180deg, #0f1629 0%, #0a0f1e 100%); border-right: 1px solid rgba(255,255,255,0.06);">
+      
+      <!-- Logo -->
+      <div class="p-6 border-b border-white/5">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);">
+            🗺️
+          </div>
+          <div>
+            <p class="text-white font-bold text-sm leading-tight">App do</p>
+            <p class="text-brand-400 font-bold text-sm leading-tight">Consultor</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nav -->
+      <nav class="flex-1 p-4 space-y-1">
+        {navLinks.map((link) => (
+          <a
+            href={link.href}
+            class={`sidebar-link ${activePage === link.key ? 'active' : ''}`}
+          >
+            <span class="text-base">{link.icon}</span>
+            {link.label}
+          </a>
+        ))}
+      </nav>
+
+      <!-- User -->
+      <div class="p-4 border-t border-white/5">
+        <div class="flex items-center gap-3 px-3 py-2.5">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+            style="background: linear-gradient(135deg, #7c3aed, #a78bfa);">
+            {initials}
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-white text-xs font-semibold truncate">{profile.full_name}</p>
+            <p class="text-slate-500 text-xs truncate">Consultor</p>
+          </div>
+          <a href="/logout" class="text-slate-500 hover:text-red-400 transition-colors text-base" title="Sair">🚪</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 min-w-0 overflow-x-hidden">
+      <slot />
+    </main>
+  </div>
+</BaseLayout>

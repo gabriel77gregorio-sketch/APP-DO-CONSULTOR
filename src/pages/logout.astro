@@ -1,0 +1,10 @@
+---
+export const prerender = false;
+import { supabase } from '../lib/supabase';
+
+Astro.cookies.delete('sb-access-token', { path: '/' });
+Astro.cookies.delete('sb-refresh-token', { path: '/' });
+await supabase.auth.signOut();
+
+return Astro.redirect('/login');
+---
