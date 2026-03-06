@@ -43,12 +43,17 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-// Lista consultores
-const { data: consultants = [] } = await supabase
-  .from('profiles')
-  .select('*')
-  .eq('role', 'consultant')
-  .order('created_at', { ascending: false });
+// Lista consultores e cruza com dados do Auth
+let consultants: any[] = [];
+if (supabaseAdmin) {
+  const { data: { users: authUsers } } = await supabaseAdmin.auth.admin.listUsers();
+  const { data: profiles } = await supabase.from('profiles').select('*').eq('role', 'consultant');
+  
+  consultants = (profiles ?? []).map(p => {
+    const authUser = authUsers.find(u => u.id === p.id);
+    return { ...p, email: authUser?.email };
+  }).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+}
 ---
 
 <ConsultantLayout title="Gerenciar Consultores" activePage="master">

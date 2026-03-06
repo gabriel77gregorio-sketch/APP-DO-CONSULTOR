@@ -20,11 +20,11 @@ const { data } = await supabase.auth.setSession({
 const user = data?.session?.user;
 
 // Busca o perfil do consultor
-let profile = { full_name: user?.email ?? 'Consultor', avatar_url: null as string | null };
+let profile = { full_name: user?.email ?? 'Consultor', avatar_url: null as string | null, role: 'consultant' };
 if (user) {
   const { data: p } = await supabase
     .from('profiles')
-    .select('full_name, avatar_url')
+    .select('full_name, avatar_url, role')
     .eq('id', user.id)
     .single();
   if (p) profile = p;
@@ -41,6 +41,10 @@ const navLinks = [
   { href: '/dashboard', label: 'Visão Geral', icon: '⚡', key: 'dashboard' },
   { href: '/clients', label: 'Meus Clientes', icon: '🏢', key: 'clients' },
 ];
+
+if (profile.role === 'master') {
+  navLinks.push({ href: '/master/consultants', label: 'Gestão Master', icon: '🔑', key: 'master' });
+}
 ---
 
 <BaseLayout title={title}>
@@ -83,7 +87,7 @@ const navLinks = [
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-white text-xs font-semibold truncate">{profile.full_name}</p>
-            <p class="text-slate-500 text-xs truncate">Consultor</p>
+            <p class="text-slate-500 text-xs truncate">{profile.role === 'master' ? 'Administrador' : 'Consultor'}</p>
           </div>
           <a href="/logout" class="text-slate-500 hover:text-red-400 transition-colors text-base" title="Sair">🚪</a>
         </div>

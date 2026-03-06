@@ -58,12 +58,14 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-// Lista clientes
-const { data: clients = [] } = await supabase
-  .from('clients')
-  .select('*')
-  .eq('consultant_id', userId)
-  .order('created_at', { ascending: false });
+const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+
+// Lista clientes (ou todos se for MASTER)
+let query = supabase.from('clients').select('*');
+if (profile?.role !== 'master') {
+  query = query.eq('consultant_id', userId);
+}
+const { data: clients = [] } = await query.order('created_at', { ascending: false });
 
 const clientsWithProgress = await Promise.all(
   (clients ?? []).map(async (client: Client) => {
