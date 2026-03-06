@@ -32,49 +32,43 @@ const [{ data: steps = [] }, { data: allTasks = [] }, { data: documents = [] }] 
 
 const progress = calcProgress((steps ?? []) as RoadmapStep[]);
 
-// Handle upload de documento
+// Processa ações (upload e delete)
 if (Astro.request.method === 'POST') {
-  const fd = await Astro.request.formData();
-  const file = fd.get('file') as File | null;
-  
-  if (file && file.size > 0) {
-    const ext = file.name.split('.').pop() ?? 'bin';
-    const storagePath = `${id}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-    const buffer = Buffer.from(await file.arrayBuffer());
-    
-    const { error: storageError } = await supabase.storage
-      .from('vault')
-      .upload(storagePath, buffer, { contentType: file.type, upsert: false });
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
 
-    if (!storageError) {
-      await supabase.from('documents').insert({
-        client_id: id,
-        name: file.name,
-        storage_path: storagePath,
-        file_size: file.size,
-        file_type: file.type,
-      });
+  if (action === 'upload') {
+    const file = formData.get('file') as File;
+    if (file && file.size > 0) {
+      const filePath = `${id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('vault').upload(filePath, file);
+      if (!uploadError) {
+        await supabase.from('documents').insert({
+          client_id: id,
+          name: file.name,
+          storage_path: filePath,
+          file_size: file.size,
+          file_type: file.type
+        });
+      }
     }
-    return Astro.redirect(`/clients/${id}`);
+  } else if (action === 'delete-file') {
+    const fileId = formData.get('file-id')?.toString();
+    const filePath = formData.get('file-path')?.toString();
+    if (fileId && filePath) {
+      // Deleta do storage
+      await supabase.storage.from('vault').remove([filePath]);
+      // Deleta do banco
+      await supabase.from('documents').delete().eq('id', fileId);
+    }
   }
+  return Astro.redirect(`/clients/${id}`);
 }
 ---
 
 <ConsultantLayout title={`Roadmap · ${client.name}`} activePage="clients">
   <div class="p-8 animate-fade-in">
     <!-- Header -->
-    <div class="flex items-start gap-4 mb-8">
-      <a href="/clients" class="text-slate-500 hover:text-white transition-colors mt-1">← Voltar</a>
-      <div class="flex-1">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-white"
-            style="background: linear-gradient(135deg, rgba(124,58,237,0.5), rgba(109,40,217,0.7));">
-            {client.name.charAt(0)}
-          </div>
-          <div>
-            <h1 class="text-2xl font-bold text-white">{client.name}</h1>
-            {client.sector && <p class="text-slate-400 text-sm">{client.sector}</p>}
-          </div>
         </div>
       </div>
       <!-- Progresso geral -->
@@ -139,26 +133,39 @@ if (Astro.request.method === 'POST') {
           </form>
 
           {/* Lista de documentos */}
-          {(documents as Document[]).length === 0 ? (
-            <p class="text-slate-600 text-xs text-center py-2">Nenhum documento enviado ainda</p>
+          {documents.length === 0 ? (
+            <p class="text-slate-500 text-sm py-8 text-center bg-white/5 rounded-xl border border-dashed border-white/10">Nenhum arquivo no cofre ainda.</p>
           ) : (
-            <div class="space-y-2">
+            <div class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {(documents as Document[]).map((doc) => (
-                <div class="flex items-center gap-3 p-2.5 rounded-xl" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);">
-                  <span class="text-base flex-shrink-0">
-                    {doc.file_type?.includes('pdf') ? '📄' : doc.file_type?.includes('image') ? '🖼️' : doc.file_type?.includes('sheet') || doc.name.endsWith('.xlsx') ? '📊' : '📎'}
-                  </span>
-                  <div class="flex-1 min-w-0">
-                    <p class="text-slate-300 text-xs truncate">{doc.name}</p>
-                    <p class="text-slate-600 text-xs">
-                      {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : ''} · {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
-                    </p>
+                <div class="flex items-center justify-between p-3 glass-hover group">
+                  <div class="flex items-center gap-3 overflow-hidden">
+                    <span class="text-xl opacity-70 group-hover:opacity-100 transition-all">
+                      {doc.file_type?.includes('pdf') ? '📕' : doc.file_type?.includes('xls') ? '📗' : '📄'}
+                    </span>
+                    <div class="overflow-hidden">
+                      <p class="text-white text-xs font-medium truncate">{doc.name}</p>
+                      <p class="text-slate-500 text-[10px] mt-0.5">Subido em {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                    </div>
                   </div>
-                  <a
-                    href={`/api/download?path=${encodeURIComponent(doc.storage_path)}`}
-                    class="text-brand-400 hover:text-brand-300 text-xs flex-shrink-0"
-                    title="Download"
-                  >↓</a>
+                  <div class="flex items-center gap-2 flex-shrink-0">
+                    <a 
+                      href={`/api/download?path=${doc.storage_path}`} 
+                      class="p-2 hover:bg-brand-500/10 rounded-lg text-brand-400 transition-colors"
+                      title="Baixar"
+                    >📥</a>
+                    <form method="POST">
+                      <input type="hidden" name="action" value="delete-file" />
+                      <input type="hidden" name="file-id" value={doc.id} />
+                      <input type="hidden" name="file-path" value={doc.storage_path} />
+                      <button 
+                        type="submit" 
+                        class="p-2 hover:bg-red-500/10 rounded-lg text-red-400/50 hover:text-red-400 transition-colors"
+                        title="Remover"
+                        onclick="return confirm('Tem certeza que deseja remover este arquivo?')"
+                      >🗑️</button>
+                    </form>
+                  </div>
                 </div>
               ))}
             </div>
@@ -167,4 +174,23 @@ if (Astro.request.method === 'POST') {
       </div>
     </div>
   </div>
+  <script>
+    const copyBtn = document.getElementById('copy-link-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const link = copyBtn.getAttribute('data-link');
+        if (link) {
+          navigator.clipboard.writeText(link).then(() => {
+            const originalText = copyBtn.innerHTML;
+            copyBtn.innerHTML = '<span>✅</span> Link Copiado!';
+            copyBtn.classList.add('text-green-400');
+            setTimeout(() => {
+              copyBtn.innerHTML = originalText;
+              copyBtn.classList.remove('text-green-400');
+            }, 3000);
+          });
+        }
+      });
+    }
+  </script>
 </ConsultantLayout>
