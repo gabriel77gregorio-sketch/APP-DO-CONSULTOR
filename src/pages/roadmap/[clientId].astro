@@ -2,7 +2,7 @@
 export const prerender = false;
 import ClientLayout from '../../layouts/ClientLayout.astro';
 import RoadmapTimeline from '../../components/client/RoadmapTimeline';
-import { supabase, calcProgress, type RoadmapStep, type Task, type Document } from '../../lib/supabase';
+import { supabase, supabaseAdmin, calcProgress, type RoadmapStep, type Task, type Document } from '../../lib/supabase';
 
 const { clientId } = Astro.params;
 if (!clientId) return Astro.redirect('/login');
@@ -11,10 +11,13 @@ const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
 const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
 
 const { data: authData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+const userId = authData?.session?.user?.id ?? '';
 const userEmail = authData?.session?.user?.email ?? '';
 
-// Verifica que o cliente tem acesso ao roadmap solicitado
-const { data: client, error } = await supabase
+// Usa admin para buscar o cliente (ignora RLS)
+const db = supabaseAdmin ?? supabase;
+
+const { data: client, error } = await db
   .from('clients')
   .select('*')
   .eq('id', clientId)
@@ -22,18 +25,19 @@ const { data: client, error } = await supabase
 
 if (error || !client) return Astro.redirect('/login');
 
-// Verifica permissão: é o consultor dono OU é o cliente com esse email
-const userId = authData?.session?.user?.id ?? '';
+// Verifica permissão: é o consultor dono, é o master ou é o cliente com esse email
+const { data: userProfile } = await db.from('profiles').select('role').eq('id', userId).single();
+const isMaster = userProfile?.role === 'master';
 const isConsultant = client.consultant_id === userId;
 const isClient = client.client_email === userEmail;
 
-if (!isConsultant && !isClient) return Astro.redirect('/login');
+if (!isMaster && !isConsultant && !isClient) return Astro.redirect('/login');
 
-// Busca dados
+// Busca dados em paralelo
 const [{ data: steps = [] }, { data: tasks = [] }, { data: documents = [] }] = await Promise.all([
-  supabase.from('roadmap_steps').select('*').eq('client_id', clientId).order('step_number'),
-  supabase.from('tasks').select('*').eq('client_id', clientId).order('created_at'),
-  supabase.from('documents').select('*').eq('client_id', clientId).order('uploaded_at', { ascending: false }),
+  db.from('roadmap_steps').select('*').eq('client_id', clientId).order('step_number'),
+  db.from('tasks').select('*').eq('client_id', clientId).order('created_at'),
+  db.from('documents').select('*').eq('client_id', clientId).order('uploaded_at', { ascending: false }),
 ]);
 
 const progress = calcProgress((steps ?? []) as RoadmapStep[]);
@@ -48,5 +52,7 @@ const progress = calcProgress((steps ?? []) as RoadmapStep[]);
     clientName={client.name}
     clientId={clientId}
     progress={progress}
+    accessToken={accessToken}
+    refreshToken={refreshToken}
   />
 </ClientLayout>

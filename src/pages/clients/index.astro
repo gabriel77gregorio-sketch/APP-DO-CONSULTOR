@@ -9,24 +9,26 @@ const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
 const { data: authData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
 const userId = authData?.session?.user?.id ?? '';
 
+// Usa admin para ignorar RLS
+const db = supabaseAdmin ?? supabase;
+
 // Handle POST: adicionar novo cliente
 let formError = '';
-let successMsg = '';
 
 if (Astro.request.method === 'POST') {
   const fd = await Astro.request.formData();
   const name = fd.get('name')?.toString().trim() ?? '';
   const clientEmail = fd.get('client_email')?.toString().trim() ?? '';
-  const sector = fd.get('sector')?.toString().trim() ?? null;
+  const sector = fd.get('sector')?.toString().trim() || null;
   const tempPassword = fd.get('password')?.toString() ?? '';
 
   if (!name || !clientEmail || !tempPassword) {
     formError = 'Preencha todos os campos obrigatórios.';
   } else if (!supabaseAdmin) {
-    formError = 'Erro crítico: Chave administrativa não configurada.';
+    formError = 'Erro crítico: Chave administrativa não configurada no servidor.';
   } else {
     try {
-      // 1. Cria usuário no Supabase Auth para o cliente usando ADMIN API
+      // 1. Cria usuário no Supabase Auth (Admin API)
       const { data: newUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: clientEmail,
         password: tempPassword,
@@ -37,8 +39,8 @@ if (Astro.request.method === 'POST') {
       if (authError || !newUser?.user) {
         formError = authError?.message ?? 'Erro ao criar conta do cliente.';
       } else {
-        // 2. Cria record do cliente no banco
-        const { data: client, error: clientError } = await supabase
+        // 2. Cria registro do cliente no banco (com admin para ignorar RLS)
+        const { data: client, error: clientError } = await supabaseAdmin
           .from('clients')
           .insert({
             consultant_id: userId,
@@ -50,16 +52,49 @@ if (Astro.request.method === 'POST') {
           .single();
 
         if (clientError || !client) {
+          // Rollback: remove o usuário auth criado
+          await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
           formError = clientError?.message ?? 'Erro ao salvar dados do cliente.';
         } else {
-          // 3. Atualiza o perfil recém-criado com role 'client'
-          await supabaseAdmin.from('profiles').update({ 
-            role: 'client', 
-            full_name: name 
-          }).eq('id', newUser.user.id);
+          // 3. Atualiza o perfil com role 'client' e nome correto
+          await supabaseAdmin.from('profiles').upsert({
+            id: newUser.user.id,
+            full_name: name,
+            role: 'client',
+            avatar_url: null,
+          });
 
-          successMsg = `Cliente ${name} cadastrado com sucesso!`;
-          return Astro.redirect('/clients'); 
+          // 4. Cria os 12 roadmap_steps automaticamente para o cliente
+          const roadmapTemplate = [
+            { step: 1, month: 'Mês 1', title: 'Diagnóstico e Alinhamento', desc: 'Mapeamento da situação atual e definição de objetivos', checks: ['Cultura organizacional mapeada', 'Principais dores identificadas', 'Metas definidas e alinhadas'] },
+            { step: 2, month: 'Mês 1', title: 'Estrutura de RH', desc: 'Análise e organização da estrutura de recursos humanos', checks: ['Organograma revisado', 'Funções e responsabilidades claras', 'Gaps de competência identificados'] },
+            { step: 3, month: 'Mês 2', title: 'Atração e Recrutamento', desc: 'Estratégia para atrair os melhores talentos', checks: ['Employer branding definido', 'Processo seletivo estruturado', 'Job descriptions revisados'] },
+            { step: 4, month: 'Mês 2', title: 'Onboarding', desc: 'Programa de integração de novos colaboradores', checks: ['Processo de onboarding criado', 'Materiais de boas-vindas prontos', 'Buddy system implementado'] },
+            { step: 5, month: 'Mês 3', title: 'Avaliação de Desempenho', desc: 'Sistema de avaliação e feedback contínuo', checks: ['Modelo de avaliação escolhido', 'Critérios e pesos definidos', 'Ciclo de avaliação planejado'] },
+            { step: 6, month: 'Mês 3', title: 'Remuneração e Benefícios', desc: 'Política de remuneração competitiva e atrativa', checks: ['Pesquisa salarial realizada', 'Política de benefícios revisada', 'Plano de cargos e salários estruturado'] },
+            { step: 7, month: 'Mês 4', title: 'Treinamento e Desenvolvimento', desc: 'Plano de capacitação para evolução das equipes', checks: ['Matriz de treinamentos criada', 'Plano de PDI implementado', 'Trilhas de aprendizado definidas'] },
+            { step: 8, month: 'Mês 4', title: 'Clima e Engajamento', desc: 'Diagnóstico e plano de ação para engajamento', checks: ['Pesquisa de clima realizada', 'Principais pontos analisados', 'Plano de ação elaborado'] },
+            { step: 9, month: 'Mês 5', title: 'Liderança e Cultura', desc: 'Desenvolvimento de líderes e fortalecimento da cultura', checks: ['Perfil de liderança definido', 'Programa de desenvolvimento lançado', 'Valores organizacionais comunicados'] },
+            { step: 10, month: 'Mês 5', title: 'Processos e Compliance', desc: 'Regularização de processos e conformidade legal', checks: ['Processos mapeados e documentados', 'Conformidade legal verificada', 'Políticas internas atualizadas'] },
+            { step: 11, month: 'Mês 6', title: 'Indicadores de RH (KPIs)', desc: 'Implementação de métricas e dashboards de gestão', checks: ['KPIs de RH definidos', 'Dashboard de métricas criado', 'Rotina de análise estabelecida'] },
+            { step: 12, month: 'Mês 6', title: 'Revisão e Plano de Continuidade', desc: 'Consolidação dos resultados e próximos passos', checks: ['Resultados consolidados', 'Próximos passos definidos', 'Autonomia da equipe garantida'] },
+          ];
+
+          const stepsToInsert = roadmapTemplate.map((item, i) => ({
+            client_id: client.id,
+            step_number: item.step,
+            title: item.title,
+            description: item.desc,
+            month_label: item.month,
+            status: i === 0 ? 'current' : 'locked',
+            notes: null,
+            checkmarks: item.checks.map(label => ({ label, checked: false })),
+            delivery_url: null,
+          }));
+
+          await supabaseAdmin.from('roadmap_steps').insert(stepsToInsert);
+
+          return Astro.redirect('/clients');
         }
       }
     } catch (e: any) {
@@ -68,10 +103,10 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+const { data: profile } = await db.from('profiles').select('role').eq('id', userId).single();
 
 // Lista clientes (ou todos se for MASTER)
-let query = supabase.from('clients').select('*');
+let query = db.from('clients').select('*');
 if (profile?.role !== 'master') {
   query = query.eq('consultant_id', userId);
 }
@@ -79,7 +114,7 @@ const { data: clients = [] } = await query.order('created_at', { ascending: fals
 
 const clientsWithProgress = await Promise.all(
   (clients ?? []).map(async (client: Client) => {
-    const { data: steps = [] } = await supabase
+    const { data: steps = [] } = await db
       .from('roadmap_steps')
       .select('status, step_number, title')
       .eq('client_id', client.id);
@@ -112,7 +147,7 @@ const clientsWithProgress = await Promise.all(
       <div class="glass p-16 text-center">
         <p class="text-5xl mb-4">🏢</p>
         <h3 class="text-white font-bold text-lg mb-2">Carteira vazia</h3>
-        <p class="text-slate-400 text-sm mb-6">Adicione seu primeiro cliente e o roadmap de 12 encontros será criado automaticamente!</p>
+        <p class="text-slate-400 text-sm mb-6">Adicione seu primeiro cliente e os 12 encontros serão criados automaticamente!</p>
         <button onclick="document.getElementById('add-client-modal').classList.remove('hidden')" class="btn-primary">
           Adicionar Primeiro Cliente
         </button>
@@ -159,9 +194,10 @@ const clientsWithProgress = await Promise.all(
         <button
           onclick="document.getElementById('add-client-modal').classList.add('hidden')"
           class="text-slate-400 hover:text-white transition-colors text-xl leading-none"
+          id="close-modal-btn"
         >✕</button>
       </div>
-      <form method="POST" class="p-6 space-y-4">
+      <form method="POST" class="p-6 space-y-4" id="add-client-form">
         {formError && (
           <div class="px-4 py-3 rounded-xl text-red-400 text-sm" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);">
             ⚠️ {formError}
@@ -190,7 +226,7 @@ const clientsWithProgress = await Promise.all(
             class="btn-ghost flex-1 justify-center">
             Cancelar
           </button>
-          <button type="submit" class="btn-primary flex-1 justify-center">
+          <button type="submit" class="btn-primary flex-1 justify-center" id="submit-client-btn">
             Criar Cliente ✓
           </button>
         </div>
@@ -203,6 +239,22 @@ const clientsWithProgress = await Promise.all(
     const modal = document.getElementById('add-client-modal');
     modal?.addEventListener('click', (e) => {
       if (e.target === modal) modal.classList.add('hidden');
+    });
+
+    // Abre modal se houve erro (para mostrar a mensagem)
+    const hasError = document.querySelector('#add-client-form .text-red-400');
+    if (hasError) {
+      modal?.classList.remove('hidden');
+    }
+
+    // Feedback de carregamento ao submeter
+    const form = document.getElementById('add-client-form') as HTMLFormElement;
+    const submitBtn = document.getElementById('submit-client-btn') as HTMLButtonElement;
+    form?.addEventListener('submit', () => {
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Criando...';
+      }
     });
   </script>
 </ConsultantLayout>

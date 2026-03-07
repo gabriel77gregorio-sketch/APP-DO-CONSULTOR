@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import type { RoadmapStep, Checkmark, Task } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
 
@@ -6,6 +6,8 @@ interface Props {
     step: RoadmapStep;
     tasks: Task[];
     isInitiallyOpen?: boolean;
+    accessToken?: string;
+    refreshToken?: string;
 }
 
 const STATUS_LABELS = {
@@ -14,17 +16,29 @@ const STATUS_LABELS = {
     completed: { label: 'Concluído', icon: '✅', cls: 'badge-completed' },
 };
 
-export default function StepEditor({ step: initialStep, tasks: initialTasks, isInitiallyOpen = false }: Props) {
+export default function StepEditor({ step: initialStep, tasks: initialTasks, isInitiallyOpen = false, accessToken, refreshToken }: Props) {
     const [step, setStep] = useState(initialStep);
     const [tasks, setTasks] = useState(initialTasks);
     const [isOpen, setIsOpen] = useState(isInitiallyOpen);
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [saveError, setSaveError] = useState('');
     const [newTask, setNewTask] = useState('');
     const [addingTask, setAddingTask] = useState(false);
 
+    // Autentica o cliente Supabase no browser com a sessão do usuário
+    useEffect(() => {
+        if (accessToken && refreshToken) {
+            supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+            });
+        }
+    }, [accessToken, refreshToken]);
+
     const saveStep = useCallback(async (updates: Partial<RoadmapStep>) => {
         setSaving(true);
+        setSaveError('');
         const merged = { ...step, ...updates };
         setStep(merged);
         const { error } = await supabase
@@ -34,10 +48,13 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                 checkmarks: merged.checkmarks,
                 delivery_url: merged.delivery_url,
                 status: merged.status,
+                updated_at: new Date().toISOString(),
             })
             .eq('id', merged.id);
         setSaving(false);
-        if (!error) {
+        if (error) {
+            setSaveError('Erro ao salvar: ' + error.message);
+        } else {
             setSaved(true);
             setTimeout(() => setSaved(false), 2000);
         }
@@ -73,12 +90,19 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
         setAddingTask(true);
         const { data, error } = await supabase
             .from('tasks')
-            .insert({ client_id: step.client_id, step_number: step.step_number, description: newTask.trim() })
+            .insert({
+                client_id: step.client_id,
+                step_number: step.step_number,
+                description: newTask.trim(),
+                completed: false,
+            })
             .select()
             .single();
         if (!error && data) {
             setTasks((t) => [...t, data]);
             setNewTask('');
+        } else if (error) {
+            setSaveError('Erro ao criar pendência: ' + error.message);
         }
         setAddingTask(false);
     };
@@ -91,8 +115,10 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
     };
 
     const deleteTask = async (taskId: string) => {
-        await supabase.from('tasks').delete().eq('id', taskId);
-        setTasks((ts) => ts.filter(t => t.id !== taskId));
+        const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+        if (!error) {
+            setTasks((ts) => ts.filter(t => t.id !== taskId));
+        }
     };
 
     const statusInfo = STATUS_LABELS[step.status];
@@ -143,6 +169,13 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
             {/* Conteúdo expansível */}
             {isOpen && (
                 <div className="border-t border-white/5 p-5 space-y-6 animate-fade-in">
+                    {/* Erro de salvamento */}
+                    {saveError && (
+                        <div className="px-4 py-2 rounded-xl text-red-400 text-xs" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+                            ⚠️ {saveError}
+                        </div>
+                    )}
+
                     {/* Checkpoints */}
                     <div>
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
@@ -182,8 +215,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                             {tasks.map((task) => (
                                 <div
                                     key={task.id}
-                                    className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${task.completed ? 'opacity-60' : ''
-                                        }`}
+                                    className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${task.completed ? 'opacity-60' : ''}`}
                                     style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}
                                 >
                                     <input
@@ -198,6 +230,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                                     <button
                                         onClick={() => deleteTask(task.id)}
                                         className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all text-xs"
+                                        title="Remover pendência"
                                     >✕</button>
                                 </div>
                             ))}
@@ -208,7 +241,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                                 type="text"
                                 value={newTask}
                                 onChange={(e) => setNewTask(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && addTask()}
+                                onKeyDown={(e) => e.key === 'Enter' && !addingTask && addTask()}
                                 placeholder="Nova pendência para o cliente..."
                                 className="input flex-1 text-sm"
                             />
@@ -217,7 +250,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                                 disabled={addingTask || !newTask.trim()}
                                 className="btn-primary px-4 disabled:opacity-50"
                             >
-                                {addingTask ? '...' : '+'}
+                                {addingTask ? '⏳' : '+'}
                             </button>
                         </div>
                     </div>
@@ -254,9 +287,10 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
 
                     {/* Actions */}
                     <div className="flex items-center justify-between pt-2">
-                        <div className="text-xs text-slate-600">
-                            {saving && '💾 Salvando...'}
-                            {saved && !saving && '✅ Salvo!'}
+                        <div className="text-xs">
+                            {saving && <span className="text-slate-500">💾 Salvando...</span>}
+                            {saved && !saving && <span className="text-green-400">✅ Salvo!</span>}
+                            {saveError && !saving && <span className="text-red-400 text-xs">{saveError}</span>}
                         </div>
                         <div className="flex gap-2">
                             {step.status === 'locked' && (

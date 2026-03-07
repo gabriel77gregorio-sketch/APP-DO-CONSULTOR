@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 import ConsultantLayout from '../../layouts/ConsultantLayout.astro';
-import { supabase, calcProgress, type Client, type RoadmapStep, type Task, type Document } from '../../lib/supabase';
+import { supabase, supabaseAdmin, calcProgress, type Client, type RoadmapStep, type Task, type Document } from '../../lib/supabase';
 import StepEditor from '../../components/consultant/StepEditor';
 
 const { id } = Astro.params;
@@ -13,26 +13,22 @@ const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
 const { data: authData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
 const userId = authData?.session?.user?.id ?? '';
 
-// Busca o cliente
-const { data: client, error: clientError } = await supabase
-  .from('clients')
-  .select('*')
-  .eq('id', id)
-  .eq('consultant_id', userId)
-  .single();
+// Usa admin para ignorar RLS
+const db = supabaseAdmin ?? supabase;
+
+// Busca o perfil do usuário para verificar se é master
+const { data: profile } = await db.from('profiles').select('role').eq('id', userId).single();
+
+// Busca o cliente — master pode ver qualquer cliente, consultor só os seus
+let clientQuery = db.from('clients').select('*').eq('id', id);
+if (profile?.role !== 'master') {
+  clientQuery = clientQuery.eq('consultant_id', userId);
+}
+const { data: client, error: clientError } = await clientQuery.single();
 
 if (clientError || !client) return Astro.redirect('/clients');
 
-// Busca steps, tasks e documentos em paralelo
-const [{ data: steps = [] }, { data: allTasks = [] }, { data: documents = [] }] = await Promise.all([
-  supabase.from('roadmap_steps').select('*').eq('client_id', id).order('step_number'),
-  supabase.from('tasks').select('*').eq('client_id', id).order('created_at'),
-  supabase.from('documents').select('*').eq('client_id', id).order('uploaded_at', { ascending: false }),
-]);
-
-const progress = calcProgress((steps ?? []) as RoadmapStep[]);
-
-// Processa ações (upload e delete)
+// Processa ações de upload e delete ANTES de buscar dados
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const action = formData.get('action')?.toString();
@@ -40,10 +36,14 @@ if (Astro.request.method === 'POST') {
   if (action === 'upload') {
     const file = formData.get('file') as File;
     if (file && file.size > 0) {
-      const filePath = `${id}/${Date.now()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('vault').upload(filePath, file);
+      const filePath = `${id}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
+      // Usa admin para upload (bypassa RLS do storage)
+      const { error: uploadError } = await db.storage.from('vault').upload(filePath, file, {
+        contentType: file.type,
+        upsert: false,
+      });
       if (!uploadError) {
-        await supabase.from('documents').insert({
+        await db.from('documents').insert({
           client_id: id,
           name: file.name,
           storage_path: filePath,
@@ -56,28 +56,66 @@ if (Astro.request.method === 'POST') {
     const fileId = formData.get('file-id')?.toString();
     const filePath = formData.get('file-path')?.toString();
     if (fileId && filePath) {
-      // Deleta do storage
-      await supabase.storage.from('vault').remove([filePath]);
-      // Deleta do banco
-      await supabase.from('documents').delete().eq('id', fileId);
+      await db.storage.from('vault').remove([filePath]);
+      await db.from('documents').delete().eq('id', fileId);
     }
+  } else if (action === 'delete-client') {
+    // Deleta cliente e todos os dados relacionados
+    await db.from('tasks').delete().eq('client_id', id);
+    await db.from('roadmap_steps').delete().eq('client_id', id);
+    // Remove arquivos do storage
+    const { data: docs } = await db.from('documents').select('storage_path').eq('client_id', id);
+    if (docs && docs.length > 0) {
+      await db.storage.from('vault').remove(docs.map((d: any) => d.storage_path));
+    }
+    await db.from('documents').delete().eq('client_id', id);
+    await db.from('clients').delete().eq('id', id);
+    return Astro.redirect('/clients');
   }
+
   return Astro.redirect(`/clients/${id}`);
 }
+
+// Busca steps, tasks e documentos em paralelo
+const [{ data: steps = [] }, { data: allTasks = [] }, { data: documents = [] }] = await Promise.all([
+  db.from('roadmap_steps').select('*').eq('client_id', id).order('step_number'),
+  db.from('tasks').select('*').eq('client_id', id).order('created_at'),
+  db.from('documents').select('*').eq('client_id', id).order('uploaded_at', { ascending: false }),
+]);
+
+const progress = calcProgress((steps ?? []) as RoadmapStep[]);
+const roadmapLink = `${Astro.site ?? 'https://app-do-consultor.vercel.app'}/roadmap/${client.id}`;
 ---
 
 <ConsultantLayout title={`Roadmap · ${client.name}`} activePage="clients">
   <div class="p-8 animate-fade-in">
     <!-- Header -->
+    <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
+      <div class="flex items-center gap-4">
+        <a href="/clients" class="text-slate-400 hover:text-white transition-colors text-sm flex items-center gap-1">
+          ← Voltar
+        </a>
+        <div>
+          <h1 class="text-2xl font-bold text-white">{client.name}</h1>
+          {client.sector && <p class="text-slate-400 text-sm mt-0.5">{client.sector}</p>}
         </div>
       </div>
       <!-- Progresso geral -->
-      <div class="glass px-5 py-3 text-right">
-        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Progresso</p>
-        <p class="text-2xl font-bold gradient-text">{progress}%</p>
-        <div class="progress-bar w-32 mt-1">
-          <div class="progress-fill" style={`width: ${progress}%`}></div>
+      <div class="glass px-5 py-3 text-right flex items-center gap-4">
+        <div>
+          <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Progresso</p>
+          <p class="text-2xl font-bold gradient-text">{progress}%</p>
+          <div class="progress-bar w-32 mt-1">
+            <div class="progress-fill" style={`width: ${progress}%`}></div>
+          </div>
         </div>
+        <!-- Botão deletar cliente -->
+        <form method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este cliente? Todos os dados serão removidos permanentemente.')">
+          <input type="hidden" name="action" value="delete-client" />
+          <button type="submit" class="text-slate-600 hover:text-red-400 transition-colors text-xl" title="Excluir Cliente">
+            🗑️
+          </button>
+        </form>
       </div>
     </div>
 
@@ -85,34 +123,59 @@ if (Astro.request.method === 'POST') {
       <!-- Coluna principal: roadmap steps -->
       <div class="xl:col-span-2 space-y-3">
         <h2 class="text-white font-bold text-lg mb-4">📍 Jornada dos 12 Encontros</h2>
-        {(steps as RoadmapStep[]).map((step, idx) => (
-          <StepEditor
-            client:load
-            step={step}
-            tasks={(allTasks as Task[]).filter(t => t.step_number === step.step_number)}
-            isInitiallyOpen={step.status === 'current'}
-          />
-        ))}
+
+        {(steps as RoadmapStep[]).length === 0 ? (
+          <div class="glass p-12 text-center">
+            <p class="text-4xl mb-3">📋</p>
+            <p class="text-slate-400 text-sm">Nenhum encontro encontrado para este cliente.</p>
+            <p class="text-slate-600 text-xs mt-1">Os 12 encontros são criados automaticamente ao adicionar um cliente.</p>
+          </div>
+        ) : (
+          (steps as RoadmapStep[]).map((step, idx) => (
+            <StepEditor
+              client:load
+              step={step}
+              tasks={(allTasks as Task[]).filter(t => t.step_number === step.step_number)}
+              isInitiallyOpen={step.status === 'current'}
+              accessToken={accessToken}
+              refreshToken={refreshToken}
+            />
+          ))
+        )}
       </div>
 
-      <!-- Sidebar direita: Cofre + Info do cliente -->
+      <!-- Sidebar direita -->
       <div class="space-y-5">
         <!-- Info do Cliente -->
         <div class="glass p-5">
-          <h3 class="text-white font-bold mb-3">👤 Acesso do Cliente</h3>
-          <div class="space-y-2">
+          <h3 class="text-white font-bold mb-4">👤 Acesso do Cliente</h3>
+          <div class="space-y-3">
             <div>
-              <p class="text-slate-500 text-xs uppercase tracking-wider">Email</p>
+              <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Email</p>
               <p class="text-slate-200 text-sm">{client.client_email}</p>
             </div>
             <div>
-              <p class="text-slate-500 text-xs uppercase tracking-wider">Link do Roadmap</p>
-              <p class="text-brand-400 text-xs break-all">/roadmap/{client.id}</p>
+              <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Link do Roadmap</p>
+              <p class="text-brand-400 text-xs break-all mb-2">/roadmap/{client.id}</p>
+              <button
+                id="copy-link-btn"
+                data-link={roadmapLink}
+                class="btn-ghost text-xs w-full justify-center"
+              >
+                <span>📋</span> Copiar Link
+              </button>
             </div>
             <div>
-              <p class="text-slate-500 text-xs uppercase tracking-wider">Cliente desde</p>
+              <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Cliente desde</p>
               <p class="text-slate-300 text-sm">{new Date(client.created_at).toLocaleDateString('pt-BR')}</p>
             </div>
+            <a
+              href={`/roadmap/${client.id}`}
+              target="_blank"
+              class="btn-ghost text-xs w-full justify-center mt-2"
+            >
+              <span>👁️</span> Ver como cliente
+            </a>
           </div>
         </div>
 
@@ -121,7 +184,8 @@ if (Astro.request.method === 'POST') {
           <h3 class="text-white font-bold mb-4">🗄️ Cofre de Documentos</h3>
           
           {/* Upload */}
-          <form method="POST" enctype="multipart/form-data" class="mb-4">
+          <form method="POST" enctype="multipart/form-data" class="mb-4" id="upload-form">
+            <input type="hidden" name="action" value="upload" />
             <label class="flex flex-col items-center justify-center w-full p-4 rounded-xl cursor-pointer transition-all"
               style="border: 2px dashed rgba(124,58,237,0.3); background: rgba(124,58,237,0.04);"
               onmouseenter="this.style.borderColor='rgba(124,58,237,0.6)'"
@@ -141,11 +205,14 @@ if (Astro.request.method === 'POST') {
                 <div class="flex items-center justify-between p-3 glass-hover group">
                   <div class="flex items-center gap-3 overflow-hidden">
                     <span class="text-xl opacity-70 group-hover:opacity-100 transition-all">
-                      {doc.file_type?.includes('pdf') ? '📕' : doc.file_type?.includes('xls') ? '📗' : '📄'}
+                      {doc.file_type?.includes('pdf') ? '📕' : doc.file_type?.includes('image') ? '🖼️' : doc.file_type?.includes('sheet') ? '📗' : '📄'}
                     </span>
                     <div class="overflow-hidden">
                       <p class="text-white text-xs font-medium truncate">{doc.name}</p>
-                      <p class="text-slate-500 text-[10px] mt-0.5">Subido em {new Date(doc.uploaded_at).toLocaleDateString()}</p>
+                      <p class="text-slate-500 text-[10px] mt-0.5">
+                        {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB · ` : ''}
+                        {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}
+                      </p>
                     </div>
                   </div>
                   <div class="flex items-center gap-2 flex-shrink-0">
@@ -174,20 +241,32 @@ if (Astro.request.method === 'POST') {
       </div>
     </div>
   </div>
+
   <script>
+    // Copiar link do roadmap
     const copyBtn = document.getElementById('copy-link-btn');
     if (copyBtn) {
       copyBtn.addEventListener('click', () => {
         const link = copyBtn.getAttribute('data-link');
         if (link) {
           navigator.clipboard.writeText(link).then(() => {
-            const originalText = copyBtn.innerHTML;
+            const originalHTML = copyBtn.innerHTML;
             copyBtn.innerHTML = '<span>✅</span> Link Copiado!';
             copyBtn.classList.add('text-green-400');
             setTimeout(() => {
-              copyBtn.innerHTML = originalText;
+              copyBtn.innerHTML = originalHTML;
               copyBtn.classList.remove('text-green-400');
             }, 3000);
+          }).catch(() => {
+            // Fallback para navegadores que não suportam clipboard API
+            const el = document.createElement('textarea');
+            el.value = link;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+            copyBtn.innerHTML = '<span>✅</span> Copiado!';
+            setTimeout(() => { copyBtn.innerHTML = '<span>📋</span> Copiar Link'; }, 3000);
           });
         }
       });

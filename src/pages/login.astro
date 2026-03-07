@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { supabase } from '../lib/supabase';
+import { supabase, supabaseAdmin } from '../lib/supabase';
 
 // Se já está logado, redireciona
 const accessToken = Astro.cookies.get('sb-access-token')?.value;
@@ -14,23 +14,23 @@ if (accessToken && refreshToken) {
   });
   if (data.session) {
     const user = data.session.user;
-    // Verifica se é consultor
-    const { data: profile } = await supabase
+    // Verifica se é consultor/master (usa admin para ignorar RLS)
+    const adminClient = supabaseAdmin ?? supabase;
+    const { data: profile } = await adminClient
       .from('profiles')
-      .select('id')
+      .select('id, role')
       .eq('id', user.id)
       .single();
     if (profile) {
+      if (profile.role === 'client') {
+        const { data: client } = await adminClient
+          .from('clients')
+          .select('id')
+          .eq('client_email', user.email ?? '')
+          .single();
+        if (client) return Astro.redirect(`/roadmap/${client.id}`);
+      }
       return Astro.redirect('/dashboard');
-    }
-    // Verifica se é cliente
-    const { data: client } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('client_email', user.email ?? '')
-      .single();
-    if (client) {
-      return Astro.redirect(`/roadmap/${client.id}`);
     }
   }
 }
@@ -67,7 +67,9 @@ if (Astro.request.method === 'POST') {
 
     const user = session.user;
     // Pega o papel do usuário na tabela centralizada de perfis
-    const { data: profile, error: profileError } = await supabase
+    // Usa admin para ignorar RLS e garantir leitura do perfil no servidor
+    const adminClient = supabaseAdmin ?? supabase;
+    const { data: profile, error: profileError } = await adminClient
       .from('profiles')
       .select('id, role')
       .eq('id', user.id)
@@ -77,14 +79,11 @@ if (Astro.request.method === 'POST') {
       errorMessage = 'Seu perfil ainda não foi configurado. Se você acabou de se cadastrar, aguarde alguns segundos e tente novamente. Se o erro persistir, fale com o administrador.';
     } else {
       // Redireciona baseado no papel (role)
-      if (profile.role === 'master') {
-        return Astro.redirect('/dashboard'); // Master vai pro dashboard
-      }
-      if (profile.role === 'consultant') {
-        return Astro.redirect('/dashboard'); // Consultor vai pro dashboard
+      if (profile.role === 'master' || profile.role === 'consultant') {
+        return Astro.redirect('/dashboard');
       }
       if (profile.role === 'client') {
-        const { data: client } = await supabase
+        const { data: client } = await adminClient
           .from('clients')
           .select('id')
           .eq('client_email', user.email ?? '')

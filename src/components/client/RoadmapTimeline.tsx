@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { RoadmapStep, Task, Document } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
 
@@ -9,6 +9,8 @@ interface Props {
     clientName: string;
     clientId: string;
     progress: number;
+    accessToken?: string;
+    refreshToken?: string;
 }
 
 const MONTH_COLORS: Record<string, string> = {
@@ -75,6 +77,8 @@ export default function RoadmapTimeline({
     clientName,
     clientId,
     progress,
+    accessToken,
+    refreshToken,
 }: Props) {
     const [tasks, setTasks] = useState(initialTasks);
     const [documents, setDocuments] = useState(initialDocuments);
@@ -82,6 +86,16 @@ export default function RoadmapTimeline({
         steps.find(s => s.status === 'current')?.id ?? null
     );
     const [activeTab, setActiveTab] = useState<'roadmap' | 'vault' | 'tasks'>('roadmap');
+
+    // Autentica o cliente Supabase no browser com a sessão do usuário
+    useEffect(() => {
+        if (accessToken && refreshToken) {
+            supabase.auth.setSession({
+                access_token: accessToken,
+                refresh_token: refreshToken,
+            });
+        }
+    }, [accessToken, refreshToken]);
 
     // Upload states
     const [uploading, setUploading] = useState(false);

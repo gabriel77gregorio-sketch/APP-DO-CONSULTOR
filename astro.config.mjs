@@ -7,6 +7,9 @@ export default defineConfig({
   site: 'https://app-do-consultor.vercel.app',
   output: 'server',
   adapter: vercel(),
+  server: {
+    host: true
+  },
   security: {
     checkOrigin: false
   },

@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 import ConsultantLayout from '../../layouts/ConsultantLayout.astro';
-import { supabase, calcProgress, getSemaforoStatus, type Client, type RoadmapStep, type Task } from '../../lib/supabase';
+import { supabase, supabaseAdmin, calcProgress, getSemaforoStatus, type Client, type RoadmapStep, type Task } from '../../lib/supabase';
 
 const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
 const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
@@ -9,16 +9,18 @@ const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
 const { data: authData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
 const userId = authData?.session?.user?.id ?? '';
 
-const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+// Usa admin para ignorar RLS ao buscar o perfil
+const db = supabaseAdmin ?? supabase;
+const { data: profile } = await db.from('profiles').select('role').eq('id', userId).single();
 
 // Busca clientes do consultor (ou todos se for MASTER)
-let query = supabase.from('clients').select('*');
+let query = db.from('clients').select('*');
 if (profile?.role !== 'master') {
   query = query.eq('consultant_id', userId);
 }
 const { data: clients = [] } = await query.order('created_at', { ascending: false });
 
-// Para cada cliente, busca passos e tasks
+// Para cada cliente, busca passos e tasks em paralelo
 type ClientWithStatus = Client & {
   progress: number;
   semaforo: 'green' | 'red' | 'yellow';
@@ -27,14 +29,10 @@ type ClientWithStatus = Client & {
 
 const clientsWithStatus: ClientWithStatus[] = await Promise.all(
   (clients ?? []).map(async (client: Client) => {
-    const { data: steps = [] } = await supabase
-      .from('roadmap_steps')
-      .select('*')
-      .eq('client_id', client.id);
-    const { data: tasks = [] } = await supabase
-      .from('tasks')
-      .select('*')
-      .eq('client_id', client.id);
+    const [{ data: steps = [] }, { data: tasks = [] }] = await Promise.all([
+      db.from('roadmap_steps').select('*').eq('client_id', client.id),
+      db.from('tasks').select('*').eq('client_id', client.id),
+    ]);
     
     const s = steps ?? [];
     const t = tasks ?? [];
