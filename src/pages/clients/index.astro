@@ -1,7 +1,7 @@
 ---
 export const prerender = false;
 import ConsultantLayout from '../../layouts/ConsultantLayout.astro';
-import { supabase, calcProgress, type Client, type RoadmapStep } from '../../lib/supabase';
+import { supabase, supabaseAdmin, calcProgress, type Client, type RoadmapStep } from '../../lib/supabase';
 
 const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
 const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
@@ -11,6 +11,8 @@ const userId = authData?.session?.user?.id ?? '';
 
 // Handle POST: adicionar novo cliente
 let formError = '';
+let successMsg = '';
+
 if (Astro.request.method === 'POST') {
   const fd = await Astro.request.formData();
   const name = fd.get('name')?.toString().trim() ?? '';
@@ -20,40 +22,48 @@ if (Astro.request.method === 'POST') {
 
   if (!name || !clientEmail || !tempPassword) {
     formError = 'Preencha todos os campos obrigatórios.';
+  } else if (!supabaseAdmin) {
+    formError = 'Erro crítico: Chave administrativa não configurada.';
   } else {
-    // Cria usuário no Supabase Auth para o cliente
-    const { data: newUser, error: authError } = await supabase.auth.admin?.createUser({
-      email: clientEmail,
-      password: tempPassword,
-      email_confirm: true,
-    }) ?? { data: null, error: new Error('Admin API não disponível no lado do cliente') };
+    try {
+      // 1. Cria usuário no Supabase Auth para o cliente usando ADMIN API
+      const { data: newUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: clientEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: { full_name: name }
+      });
 
-    if (authError || !newUser?.user) { // Check newUser.user for null/undefined
-      formError = authError?.message ?? 'Erro ao criar conta do cliente.';
-    } else {
-      // 2. Cria record do cliente no banco
-      const { data: client, error: clientError } = await supabase
-        .from('clients')
-        .insert({
-          consultant_id: userId,
-          name,
-          client_email: clientEmail, // Changed 'email' to 'clientEmail'
-          sector,
-        })
-        .select()
-        .single();
-
-      if (clientError || !client) {
-        formError = clientError?.message ?? 'Erro ao salvar dados do cliente.';
+      if (authError || !newUser?.user) {
+        formError = authError?.message ?? 'Erro ao criar conta do cliente.';
       } else {
-        // 3. Atualiza o perfil recém-criado (pelo trigger) com role 'client'
-        // Usamos o supabaseAdmin para garantir que o Master/Consultor tenha permissão de mudar o perfil
-        if (supabaseAdmin) {
-          await supabaseAdmin.from('profiles').update({ role: 'client', full_name: name }).eq('id', newUser.user.id);
+        // 2. Cria record do cliente no banco
+        const { data: client, error: clientError } = await supabase
+          .from('clients')
+          .insert({
+            consultant_id: userId,
+            name,
+            client_email: clientEmail,
+            sector,
+          })
+          .select()
+          .single();
+
+        if (clientError || !client) {
+          formError = clientError?.message ?? 'Erro ao salvar dados do cliente.';
+        } else {
+          // 3. Atualiza o perfil recém-criado com role 'client'
+          await supabaseAdmin.from('profiles').update({ 
+            role: 'client', 
+            full_name: name 
+          }).eq('id', newUser.user.id);
+
+          successMsg = `Cliente ${name} cadastrado com sucesso!`;
+          return Astro.redirect('/clients'); 
         }
-        successMsg = `Cliente ${name} cadastrado com sucesso!`;
-        return Astro.redirect('/clients'); // Recarrega
       }
+    } catch (e: any) {
+      formError = 'Erro inesperado: ' + e.message;
     }
   }
 }

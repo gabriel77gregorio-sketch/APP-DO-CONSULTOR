@@ -18,7 +18,7 @@ export type Profile = {
     id: string;
     full_name: string;
     avatar_url: string | null;
-    role: 'master' | 'consultant';
+    role: 'master' | 'consultant' | 'client';
     created_at: string;
 };
 

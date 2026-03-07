@@ -74,7 +74,7 @@ if (Astro.request.method === 'POST') {
       .single();
 
     if (profileError || !profile) {
-      errorMessage = 'Perfil não encontrado. Entre em contato com o administrador.';
+      errorMessage = 'Seu perfil ainda não foi configurado. Se você acabou de se cadastrar, aguarde alguns segundos e tente novamente. Se o erro persistir, fale com o administrador.';
     } else {
       // Redireciona baseado no papel (role)
       if (profile.role === 'master') {
