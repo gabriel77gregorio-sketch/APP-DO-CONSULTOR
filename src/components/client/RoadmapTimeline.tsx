@@ -358,6 +358,11 @@ export default function RoadmapTimeline({
                                                                 />
                                                                 <span className={`text-sm ${task.completed ? 'line-through text-slate-600' : 'text-slate-300'}`}>
                                                                     {task.description}
+                                                                    {task.due_date && (
+                                                                        <span className="block text-[10px] text-amber-500/70 mt-0.5 font-medium">
+                                                                            📅 Vence em: {new Date(task.due_date).toLocaleDateString('pt-BR')}
+                                                                        </span>
+                                                                    )}
                                                                 </span>
                                                             </label>
                                                         ))}
@@ -392,7 +397,14 @@ export default function RoadmapTimeline({
                                     style={{ background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)' }}>
                                     <input type="checkbox" checked={false} onChange={() => toggleTask(task.id, false)}
                                         className="w-4 h-4 accent-amber-500 flex-shrink-0" />
-                                    <span className="text-slate-200 text-sm">{task.description}</span>
+                                    <div className="flex-1">
+                                        <p className="text-slate-200 text-sm font-medium">{task.description}</p>
+                                        {task.due_date && (
+                                            <p className="text-[10px] text-amber-500/70 mt-0.5">
+                                                📅 Vence em: {new Date(task.due_date).toLocaleDateString('pt-BR')}
+                                            </p>
+                                        )}
+                                    </div>
                                 </label>
                             ))}
                         </div>
@@ -405,7 +417,14 @@ export default function RoadmapTimeline({
                                     style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.05)' }}>
                                     <input type="checkbox" checked={true} onChange={() => toggleTask(task.id, true)}
                                         className="w-4 h-4 accent-amber-500 flex-shrink-0" />
-                                    <span className="text-slate-600 text-sm line-through">{task.description}</span>
+                                    <div className="flex-1">
+                                        <p className="text-slate-600 text-sm line-through font-medium">{task.description}</p>
+                                        {task.due_date && (
+                                            <p className="text-[10px] text-slate-700 mt-0.5">
+                                                📅 Venceu em: {new Date(task.due_date).toLocaleDateString('pt-BR')}
+                                            </p>
+                                        )}
+                                    </div>
                                 </label>
                             ))}
                         </div>

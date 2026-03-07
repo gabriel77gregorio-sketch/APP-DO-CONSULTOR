@@ -24,6 +24,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
     const [saved, setSaved] = useState(false);
     const [saveError, setSaveError] = useState('');
     const [newTask, setNewTask] = useState('');
+    const [newDueDate, setNewDueDate] = useState('');
     const [addingTask, setAddingTask] = useState(false);
 
     // Autentica o cliente Supabase no browser com a sessão do usuário
@@ -95,12 +96,14 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                 step_number: step.step_number,
                 description: newTask.trim(),
                 completed: false,
+                due_date: newDueDate || null,
             })
             .select()
             .single();
         if (!error && data) {
             setTasks((t) => [...t, data]);
             setNewTask('');
+            setNewDueDate('');
         } else if (error) {
             setSaveError('Erro ao criar pendência: ' + error.message);
         }
@@ -226,6 +229,11 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                                     />
                                     <span className={`text-sm flex-1 ${task.completed ? 'line-through text-slate-600' : 'text-slate-300'}`}>
                                         {task.description}
+                                        {task.due_date && (
+                                            <span className="block text-[10px] text-amber-500/70 mt-0.5">
+                                                📅 Vence em: {new Date(task.due_date).toLocaleDateString('pt-BR')}
+                                            </span>
+                                        )}
                                     </span>
                                     <button
                                         onClick={() => deleteTask(task.id)}
@@ -236,22 +244,33 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                             ))}
                         </div>
                         {/* Add task */}
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                value={newTask}
-                                onChange={(e) => setNewTask(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && !addingTask && addTask()}
-                                placeholder="Nova pendência para o cliente..."
-                                className="input flex-1 text-sm"
-                            />
-                            <button
-                                onClick={addTask}
-                                disabled={addingTask || !newTask.trim()}
-                                className="btn-primary px-4 disabled:opacity-50"
-                            >
-                                {addingTask ? '⏳' : '+'}
-                            </button>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex gap-2">
+                                <input
+                                    type="text"
+                                    value={newTask}
+                                    onChange={(e) => setNewTask(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && !addingTask && addTask()}
+                                    placeholder="Nova pendência para o cliente..."
+                                    className="input flex-1 text-sm"
+                                />
+                                <button
+                                    onClick={addTask}
+                                    disabled={addingTask || !newTask.trim()}
+                                    className="btn-primary px-4 disabled:opacity-50"
+                                >
+                                    {addingTask ? '⏳' : '+'}
+                                </button>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="text-[10px] text-slate-500 uppercase font-bold">Prazo:</label>
+                                <input
+                                    type="date"
+                                    value={newDueDate}
+                                    onChange={(e) => setNewDueDate(e.target.value)}
+                                    className="input py-1 px-2 text-[10px] w-auto bg-white/5 border-white/10"
+                                />
+                            </div>
                         </div>
                     </div>
 

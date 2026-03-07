@@ -26,7 +26,7 @@ export type Profile = {
 export type Client = { id: string; consultant_id: string; name: string; client_email: string; sector: string | null; logo_url: string | null; created_at: string; };
 export type Checkmark = { label: string; checked: boolean; };
 export type RoadmapStep = { id: string; client_id: string; step_number: number; title: string; description: string; month_label: string; status: 'locked' | 'current' | 'completed'; notes: string | null; checkmarks: Checkmark[]; delivery_url: string | null; updated_at: string; };
-export type Task = { id: string; client_id: string; step_number: number; description: string; completed: boolean; created_at: string; };
+export type Task = { id: string; client_id: string; step_number: number; description: string; completed: boolean; created_at: string; due_date?: string | null; };
 export type Document = { id: string; client_id: string; name: string; storage_path: string; file_size: number | null; file_type: string | null; uploaded_at: string; };
 
 export function calcProgress(steps: RoadmapStep[]): number {
