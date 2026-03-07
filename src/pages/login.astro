@@ -50,17 +50,19 @@ if (Astro.request.method === 'POST') {
     errorMessage = 'Email ou senha inválidos. Tente novamente.';
   } else {
     const session = data.session;
+    const isProd = import.meta.env.PROD;
+
     Astro.cookies.set('sb-access-token', session.access_token, {
       path: '/',
       httpOnly: true,
-      secure: false,
+      secure: isProd,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7,
     });
     Astro.cookies.set('sb-refresh-token', session.refresh_token, {
       path: '/',
       httpOnly: true,
-      secure: false,
+      secure: isProd,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
     });
