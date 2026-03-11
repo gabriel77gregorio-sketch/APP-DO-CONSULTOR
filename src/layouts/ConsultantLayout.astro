@@ -39,25 +39,79 @@ const initials = (profile.full_name ?? user?.email ?? 'U')
   .toUpperCase() || 'U';
 
 const navLinks = [
-  { href: '/dashboard', label: 'Visão Geral', icon: '⚡', key: 'dashboard' },
-  { href: '/clients', label: 'Meus Clientes', icon: '🏢', key: 'clients' },
+  { href: '/dashboard', label: 'Visão Geral', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>', key: 'dashboard' },
+  { href: '/clients', label: 'Meus Clientes', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="16" height="20" x="4" y="2" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>', key: 'clients' },
 ];
 
 if (profile.role === 'master') {
-  navLinks.push({ href: '/master/consultants', label: 'Gestão Master', icon: '🔑', key: 'master' });
+  navLinks.push({ href: '/master/consultants', label: 'Gestão Master', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>', key: 'master' });
 }
 ---
 
 <BaseLayout title={title}>
-  <div class="flex min-h-screen">
-    <!-- Sidebar -->
-    <aside class="w-64 flex-shrink-0 flex flex-col" style="background: linear-gradient(180deg, #0f1629 0%, #0a0f1e 100%); border-right: 1px solid rgba(255,255,255,0.06);">
-      
+  <div class="flex flex-col md:flex-row min-h-screen bg-[#0a0f1e] w-full relative">
+    <!-- Mobile Header -->
+    <header class="md:hidden sticky top-0 z-50 px-4 py-3 bg-[#0a0f1e]/95 backdrop-blur-md border-b border-white/5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg flex items-center justify-center text-white" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="21"/><line x1="15" x2="15" y1="3" y2="21"/></svg>
+          </div>
+          <div>
+            <p class="text-white font-bold text-xs leading-tight">App do</p>
+            <p class="text-brand-400 font-bold text-xs leading-tight">Consultor</p>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-4">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0"
+            style="background: linear-gradient(135deg, #7c3aed, #a78bfa);">
+            {initials}
+          </div>
+          <button id="mobile-menu-btn" class="p-1 -mr-1 text-slate-300 hover:text-white">
+            <svg class="hamburger-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            <svg class="close-icon hidden" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Menu Dropdown -->
+      <div id="mobile-menu" class="hidden fixed left-0 right-0 top-[56px] bg-[#0f1629] border-b border-white/5 p-4 shadow-2xl z-40 transform transition-transform duration-200">
+        <nav class="space-y-2">
+          {navLinks.map((link) => (
+            <a
+              href={link.href}
+              class={`flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${activePage === link.key ? 'bg-brand-500/10 text-brand-400' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}
+            >
+              <span class="text-xl flex items-center opacity-80" set:html={link.icon}></span>
+              <span class="text-sm font-medium">{link.label}</span>
+            </a>
+          ))}
+          <div class="h-px bg-white/5 my-2"></div>
+          <a href="/logout" class="flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-red-500/10 hover:text-red-400 transition-colors">
+            <span class="text-xl flex items-center opacity-80">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+            </span>
+            <span class="text-sm font-medium">Sair do Sistema</span>
+          </a>
+        </nav>
+      </div>
+    </header>
+
+    <!-- Sidebar (Desktop) -->
+    <aside class="hidden md:flex w-64 flex-shrink-0 flex-col sticky top-0 h-screen" style="background: linear-gradient(180deg, #0f1629 0%, #0a0f1e 100%); border-right: 1px solid rgba(255,255,255,0.06);">
       <!-- Logo -->
       <div class="p-6 border-b border-white/5">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl flex items-center justify-center text-lg" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);">
-            🗺️
+          <div class="w-9 h-9 rounded-xl flex items-center justify-center text-white" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" x2="9" y1="3" y2="21"/><line x1="15" x2="15" y1="3" y2="21"/></svg>
           </div>
           <div>
             <p class="text-white font-bold text-sm leading-tight">App do</p>
@@ -73,7 +127,7 @@ if (profile.role === 'master') {
             href={link.href}
             class={`sidebar-link ${activePage === link.key ? 'active' : ''}`}
           >
-            <span class="text-base">{link.icon}</span>
+            <span class="text-xl flex items-center opacity-80" set:html={link.icon}></span>
             {link.label}
           </a>
         ))}
@@ -92,7 +146,9 @@ if (profile.role === 'master') {
               {profile.role === 'master' ? 'Administrador' : 'Consultor'}
             </p>
           </div>
-          <a href="/logout" class="text-slate-500 hover:text-red-400 transition-colors text-base" title="Sair">🚪</a>
+          <a href="/logout" class="text-slate-500 hover:text-red-400 transition-colors flex items-center" title="Sair">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+          </a>
         </div>
       </div>
     </aside>
@@ -102,4 +158,17 @@ if (profile.role === 'master') {
       <slot />
     </main>
   </div>
+
+  <script>
+    const btn = document.getElementById('mobile-menu-btn');
+    const menu = document.getElementById('mobile-menu');
+    const hamburger = btn?.querySelector('.hamburger-icon');
+    const close = btn?.querySelector('.close-icon');
+
+    btn?.addEventListener('click', () => {
+      menu?.classList.toggle('hidden');
+      hamburger?.classList.toggle('hidden');
+      close?.classList.toggle('hidden');
+    });
+  </script>
 </BaseLayout>

@@ -126,9 +126,9 @@ const clientsWithProgress = await Promise.all(
 ---
 
 <ConsultantLayout title="Meus Clientes" activePage="clients">
-  <div class="p-8 animate-fade-in">
+  <div class="p-4 md:p-8 animate-fade-in max-w-[100vw]">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-6 md:mb-8">
       <div>
         <h1 class="text-2xl font-bold text-white">Meus Clientes</h1>
         <p class="text-slate-400 text-sm mt-1">{clientsWithProgress.length} empresa{clientsWithProgress.length !== 1 ? 's' : ''} na carteira</p>

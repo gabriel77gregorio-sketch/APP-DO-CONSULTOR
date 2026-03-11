@@ -131,42 +131,50 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
         <div className={`glass transition-all duration-300 ${step.status === 'current' ? 'border-blue-500/30' : step.status === 'completed' ? 'border-green-500/20' : ''}`}>
             {/* Header do step */}
             <button
-                className="w-full flex items-center gap-4 p-5 text-left"
+                className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-4 sm:p-5 text-left relative"
                 onClick={() => setIsOpen(!isOpen)}
             >
-                {/* Número */}
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 transition-all ${step.status === 'completed'
-                        ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                        : step.status === 'current'
-                            ? 'border border-blue-500/40 text-blue-400'
-                            : 'border border-white/10 text-slate-600'
-                    }`}
-                    style={step.status === 'current' ? { background: 'rgba(59,130,246,0.12)' } : {}}>
-                    {step.status === 'completed' ? '✓' : step.step_number}
-                </div>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${step.status === 'locked' ? 'text-slate-600' : 'text-slate-400'}`}
-                            style={{ background: 'rgba(255,255,255,0.04)' }}>
-                            {step.month_label}
-                        </span>
+                <div className="flex items-start gap-4 flex-1 min-w-0 w-full pr-6 sm:pr-0">
+                    {/* Número */}
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0 transition-all ${step.status === 'completed'
+                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                            : step.status === 'current'
+                                ? 'border border-blue-500/40 text-blue-400'
+                                : 'border border-white/10 text-slate-600'
+                        }`}
+                        style={step.status === 'current' ? { background: 'rgba(59,130,246,0.12)' } : {}}>
+                        {step.status === 'completed' ? '✓' : step.step_number}
                     </div>
-                    <h3 className={`font-semibold mt-0.5 ${step.status === 'locked' ? 'text-slate-600' : 'text-white'}`}>
-                        Encontro {step.step_number}: {step.title}
-                    </h3>
-                    <p className={`text-xs mt-0.5 ${step.status === 'locked' ? 'text-slate-700' : 'text-slate-400'}`}>
-                        {step.description}
-                    </p>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${step.status === 'locked' ? 'text-slate-600' : 'text-slate-400'}`}
+                                style={{ background: 'rgba(255,255,255,0.04)' }}>
+                                {step.month_label}
+                            </span>
+                        </div>
+                        <h3 className={`font-semibold text-sm sm:text-base leading-snug ${step.status === 'locked' ? 'text-slate-600' : 'text-white'}`}>
+                            Encontro {step.step_number}: {step.title}
+                        </h3>
+                        <p className={`text-xs mt-1 hidden sm:block ${step.status === 'locked' ? 'text-slate-700' : 'text-slate-400'}`}>
+                            {step.description}
+                        </p>
+                    </div>
                 </div>
 
                 {/* Status badge + chevron */}
-                <div className="flex items-center gap-3 flex-shrink-0">
-                    <span className={statusInfo.cls}>{statusInfo.icon} {statusInfo.label}</span>
-                    <span className="text-xs font-medium text-slate-500">{checkedCount}/{step.checkmarks.length}</span>
-                    <span className={`text-slate-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
+                <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto flex-shrink-0 pl-[56px] sm:pl-0 mt-1 sm:mt-0">
+                    <div className="flex items-center gap-3">
+                        <span className={statusInfo.cls}>{statusInfo.icon} {statusInfo.label}</span>
+                        <span className="text-xs font-medium text-slate-500">{checkedCount}/{step.checkmarks.length}</span>
+                    </div>
+                    {/* Chevron: visível no mobile empilhado OU no desktop na fileira */}
+                    <span className={`hidden sm:block text-slate-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
                 </div>
+                
+                {/* Chevron absolutizado para mobile (fica no canto superior direio) */}
+                <span className={`sm:hidden absolute top-5 right-4 text-slate-500 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>▼</span>
             </button>
 
             {/* Conteúdo expansível */}

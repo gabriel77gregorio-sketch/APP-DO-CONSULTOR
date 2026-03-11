@@ -53,15 +53,16 @@ const clientsWithStatus: ClientWithStatus[] = await Promise.all(
 const totalClients = clientsWithStatus.length;
 const greenClients = clientsWithStatus.filter(c => c.semaforo === 'green').length;
 const redClients = clientsWithStatus.filter(c => c.semaforo === 'red').length;
+const yellowClients = clientsWithStatus.filter(c => c.semaforo === 'yellow').length;
 const avgProgress = totalClients > 0
   ? Math.round(clientsWithStatus.reduce((acc, c) => acc + c.progress, 0) / totalClients)
   : 0;
 ---
 
 <ConsultantLayout title="Dashboard" activePage="dashboard">
-  <div class="p-8 animate-fade-in">
+  <div class="p-4 md:p-8 animate-fade-in max-w-[100vw]">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-6 md:mb-8">
       <div>
         <h1 class="text-2xl font-bold text-white">Visão Geral</h1>
         <p class="text-slate-400 text-sm mt-1">Semáforo da sua carteira de clientes</p>
@@ -86,13 +87,16 @@ const avgProgress = totalClients > 0
         </div>
       </div>
       <div class="glass p-5">
-        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-1">Status da Carteira</p>
-        <div class="flex items-center gap-3 mt-1">
+        <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider mb-2">Status da Carteira</p>
+        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 mt-1">
           <span class="flex items-center gap-1.5 text-sm font-semibold" style="color: #22c55e;">
-            <span class="semaforo-green"></span> {greenClients} em dia
+            <span class="semaforo-green"></span> {greenClients}
+          </span>
+          <span class="flex items-center gap-1.5 text-sm font-semibold" style="color: #f59e0b;">
+            <span class="semaforo-yellow"></span> {yellowClients}
           </span>
           <span class="flex items-center gap-1.5 text-sm font-semibold" style="color: #ef4444;">
-            <span class="semaforo-red"></span> {redClients} atrasados
+            <span class="semaforo-red"></span> {redClients}
           </span>
         </div>
       </div>

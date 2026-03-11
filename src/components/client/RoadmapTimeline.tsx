@@ -198,11 +198,11 @@ export default function RoadmapTimeline({
     return (
         <div>
             {/* Hero Section */}
-            <div className="glass p-8 mb-8 text-center relative overflow-hidden">
+            <div className="glass p-6 md:p-8 mb-6 md:mb-8 text-center relative overflow-hidden">
                 <div className="absolute inset-0 pointer-events-none"
                     style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.08) 0%, transparent 70%)' }} />
-                <h1 className="text-3xl font-bold text-white mb-1">{clientName}</h1>
-                <p className="text-slate-400 text-sm mb-6">Sua jornada de transformação em RH</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{clientName}</h1>
+                <p className="text-slate-400 text-xs md:text-sm mb-6">Sua jornada de transformação em RH</p>
                 <div className="flex justify-center mb-4">
                     <ProgressRing progress={progress} />
                 </div>
@@ -215,7 +215,7 @@ export default function RoadmapTimeline({
             </div>
 
             {/* Tabs */}
-            <div className="flex gap-1 mb-6 p-1 rounded-xl"
+            <div className="flex flex-nowrap overflow-x-auto gap-1 mb-6 p-1 rounded-xl no-scrollbar"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 {([
                     { key: 'roadmap', label: '🗺️ Minha Jornada' },
@@ -225,7 +225,7 @@ export default function RoadmapTimeline({
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
-                        className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab.key ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+                        className={`flex-1 min-w-[max-content] px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab.key ? 'text-white' : 'text-slate-500 hover:text-slate-300'
                             }`}
                         style={activeTab === tab.key ? { background: 'rgba(124,58,237,0.25)', color: '#a78bfa' } : {}}
                     >

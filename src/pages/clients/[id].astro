@@ -3,6 +3,7 @@ export const prerender = false;
 import ConsultantLayout from '../../layouts/ConsultantLayout.astro';
 import { supabase, supabaseAdmin, calcProgress, type Client, type RoadmapStep, type Task, type Document } from '../../lib/supabase';
 import StepEditor from '../../components/consultant/StepEditor';
+import VaultUploader from '../../components/consultant/VaultUploader';
 
 const { id } = Astro.params;
 if (!id) return Astro.redirect('/clients');
@@ -33,26 +34,7 @@ if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const action = formData.get('action')?.toString();
 
-  if (action === 'upload') {
-    const file = formData.get('file') as File;
-    if (file && file.size > 0) {
-      const filePath = `${id}/${Date.now()}-${file.name.replace(/\s+/g, '_')}`;
-      // Usa admin para upload (bypassa RLS do storage)
-      const { error: uploadError } = await db.storage.from('vault').upload(filePath, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-      if (!uploadError) {
-        await db.from('documents').insert({
-          client_id: id,
-          name: file.name,
-          storage_path: filePath,
-          file_size: file.size,
-          file_type: file.type
-        });
-      }
-    }
-  } else if (action === 'delete-file') {
+  if (action === 'delete-file') {
     const fileId = formData.get('file-id')?.toString();
     const filePath = formData.get('file-path')?.toString();
     if (fileId && filePath) {
@@ -88,9 +70,9 @@ const roadmapLink = `${Astro.site ?? 'https://app-do-consultor.vercel.app'}/road
 ---
 
 <ConsultantLayout title={`Roadmap · ${client.name}`} activePage="clients">
-  <div class="p-8 animate-fade-in">
+  <div class="p-4 md:p-8 animate-fade-in max-w-[100vw]">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-8 gap-4 flex-wrap">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-8 gap-4">
       <div class="flex items-center gap-4">
         <a href="/clients" class="text-slate-400 hover:text-white transition-colors text-sm flex items-center gap-1">
           ← Voltar
@@ -179,22 +161,12 @@ const roadmapLink = `${Astro.site ?? 'https://app-do-consultor.vercel.app'}/road
           </div>
         </div>
 
-        <!-- Cofre de Documentos -->
+        {/* Cofre de Documentos */}
         <div class="glass p-5">
           <h3 class="text-white font-bold mb-4">🗄️ Cofre de Documentos</h3>
           
-          {/* Upload */}
-          <form method="POST" enctype="multipart/form-data" class="mb-4" id="upload-form">
-            <input type="hidden" name="action" value="upload" />
-            <label class="flex flex-col items-center justify-center w-full p-4 rounded-xl cursor-pointer transition-all"
-              style="border: 2px dashed rgba(124,58,237,0.3); background: rgba(124,58,237,0.04);"
-              onmouseenter="this.style.borderColor='rgba(124,58,237,0.6)'"
-              onmouseleave="this.style.borderColor='rgba(124,58,237,0.3)'">
-              <span class="text-2xl mb-1">📁</span>
-              <span class="text-slate-400 text-xs text-center">Clique para enviar um documento</span>
-              <input type="file" name="file" class="hidden" onchange="this.form.submit()" />
-            </label>
-          </form>
+          {/* Upload de arquivos vai para o frontend para evitar PayloadTooLarge da Vercel */}
+          <VaultUploader client:load clientId={id} />
 
           {/* Lista de documentos */}
           {documents.length === 0 ? (
