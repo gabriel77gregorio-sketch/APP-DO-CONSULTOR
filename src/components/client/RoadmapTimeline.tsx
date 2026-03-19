@@ -11,6 +11,10 @@ interface Props {
     progress: number;
     accessToken?: string;
     refreshToken?: string;
+    roadmapTitle?: string;
+    roadmapSubtitle?: string;
+    primaryColor?: string;
+    logoUrl?: string;
 }
 
 const MONTH_COLORS: Record<string, string> = {
@@ -38,7 +42,7 @@ function getFileIcon(fileType: string | null, name: string): string {
     return '📎';
 }
 
-function ProgressRing({ progress }: { progress: number }) {
+function ProgressRing({ progress, primaryColor }: { progress: number, primaryColor: string }) {
     const radius = 54;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (progress / 100) * circumference;
@@ -49,18 +53,12 @@ function ProgressRing({ progress }: { progress: number }) {
                 <circle cx="70" cy="70" r={radius} fill="none" strokeWidth="8"
                     stroke="rgba(255,255,255,0.06)" />
                 <circle cx="70" cy="70" r={radius} fill="none" strokeWidth="8"
-                    stroke="url(#progressGradient)"
+                    stroke={primaryColor}
                     strokeDasharray={circumference}
                     strokeDashoffset={offset}
                     strokeLinecap="round"
                     style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
                 />
-                <defs>
-                    <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#7c3aed" />
-                        <stop offset="100%" stopColor="#a78bfa" />
-                    </linearGradient>
-                </defs>
             </svg>
             <div className="absolute text-center">
                 <span className="text-3xl font-bold text-white">{progress}%</span>
@@ -79,6 +77,10 @@ export default function RoadmapTimeline({
     progress,
     accessToken,
     refreshToken,
+    roadmapTitle,
+    roadmapSubtitle,
+    primaryColor = '#7c3aed',
+    logoUrl,
 }: Props) {
     const [tasks, setTasks] = useState(initialTasks);
     const [documents, setDocuments] = useState(initialDocuments);
@@ -198,17 +200,27 @@ export default function RoadmapTimeline({
     return (
         <div>
             {/* Hero Section */}
-            <div className="glass p-6 md:p-8 mb-6 md:mb-8 text-center relative overflow-hidden">
+            <div className="glass p-6 md:p-8 mb-6 md:mb-8 text-center relative overflow-hidden" style={{ borderTop: `4px solid ${primaryColor}` }}>
+                {logoUrl ? (
+                    <img src={logoUrl} alt={clientName} className="h-12 w-auto mx-auto mb-4 object-contain rounded-lg" />
+                ) : (
+                    <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-white shadow-lg"
+                        style={{ background: `linear-gradient(135deg, ${primaryColor}80, ${primaryColor})` }}>
+                        {clientName.charAt(0).toUpperCase()}
+                    </div>
+                )}
+                
                 <div className="absolute inset-0 pointer-events-none"
-                    style={{ background: 'radial-gradient(ellipse at center, rgba(124,58,237,0.08) 0%, transparent 70%)' }} />
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{clientName}</h1>
-                <p className="text-slate-400 text-xs md:text-sm mb-6">Sua jornada de transformação em RH</p>
+                    style={{ background: `radial-gradient(ellipse at center, ${primaryColor}15 0%, transparent 70%)` }} />
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{roadmapTitle || 'Jornada dos 12 Encontros'}</h1>
+                <p className="text-slate-300 text-sm md:text-base font-medium mb-1">{clientName}</p>
+                <p className="text-slate-400 text-xs md:text-sm mb-6">{roadmapSubtitle || 'Um plano de desenvolvimento personalizado'}</p>
                 <div className="flex justify-center mb-4">
-                    <ProgressRing progress={progress} />
+                    <ProgressRing progress={progress} primaryColor={primaryColor} />
                 </div>
                 {currentStep && (
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold text-blue-300"
-                        style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)' }}>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
+                        style={{ color: primaryColor, background: `${primaryColor}15`, border: `1px solid ${primaryColor}40` }}>
                         🔵 Em andamento: Encontro {currentStep.step_number} — {currentStep.title}
                     </div>
                 )}
@@ -227,7 +239,7 @@ export default function RoadmapTimeline({
                         onClick={() => setActiveTab(tab.key)}
                         className={`flex-1 min-w-[max-content] px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab.key ? 'text-white' : 'text-slate-500 hover:text-slate-300'
                             }`}
-                        style={activeTab === tab.key ? { background: 'rgba(124,58,237,0.25)', color: '#a78bfa' } : {}}
+                        style={activeTab === tab.key ? { background: `${primaryColor}30`, color: primaryColor } : {}}
                     >
                         {tab.label}
                     </button>

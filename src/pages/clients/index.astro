@@ -2,6 +2,7 @@
 export const prerender = false;
 import ConsultantLayout from '../../layouts/ConsultantLayout.astro';
 import { supabase, supabaseAdmin, calcProgress, type Client, type RoadmapStep } from '../../lib/supabase';
+import { ROADMAP_TEMPLATES, TEMPLATE_NAMES } from '../../lib/templates';
 
 const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
 const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
@@ -12,6 +13,8 @@ const userId = authData?.session?.user?.id ?? '';
 // Usa admin para ignorar RLS
 const db = supabaseAdmin ?? supabase;
 
+const { data: profile } = await db.from('profiles').select('role').eq('id', userId).single();
+
 // Handle POST: adicionar novo cliente
 let formError = '';
 
@@ -21,6 +24,35 @@ if (Astro.request.method === 'POST') {
   const clientEmail = fd.get('client_email')?.toString().trim() ?? '';
   const sector = fd.get('sector')?.toString().trim() || null;
   const tempPassword = fd.get('password')?.toString() ?? '';
+  const roadmapTypeInput = fd.get('roadmap_type');
+  const roadmapType = roadmapTypeInput?.toString() ?? 'default';
+  const primaryColor = fd.get('primary_color')?.toString() || '#7c3aed';
+  let logoUrl = null;
+  
+  const logoFile = fd.get('logo_file') as File;
+  if (logoFile && logoFile.size > 0) {
+      const ext = logoFile.name.split('.').pop();
+      const path = `logos/${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabaseAdmin.storage.from('vault').upload(path, logoFile, { contentType: logoFile.type });
+      if (!uploadError) {
+          logoUrl = path;
+      } else {
+          console.error("Erro no upload da logo:", uploadError);
+      }
+  }
+
+  // DEBUG LOG
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const logPath = path.join(process.cwd(), 'debug_roadmap.log');
+    fs.appendFileSync(logPath, `\n[${new Date().toISOString()}] POST SUBMISSION:\n`);
+    fs.appendFileSync(logPath, `- User role: ${profile?.role}\n`);
+    fs.appendFileSync(logPath, `- roadmap_type input stringified: ${roadmapType}\n`);
+    fs.appendFileSync(logPath, `- formData map: ${JSON.stringify(Array.from(fd.entries()))}\n`);
+  } catch (err) {
+    console.error("Test log failed", err);
+  }
 
   if (!name || !clientEmail || !tempPassword) {
     formError = 'Preencha todos os campos obrigatórios.';
@@ -47,6 +79,8 @@ if (Astro.request.method === 'POST') {
             name,
             client_email: clientEmail,
             sector,
+            primary_color: primaryColor,
+            logo_url: logoUrl
           })
           .select()
           .single();
@@ -64,35 +98,32 @@ if (Astro.request.method === 'POST') {
             avatar_url: null,
           });
 
-          // 4. Cria os 12 roadmap_steps automaticamente para o cliente
-          const roadmapTemplate = [
-            { step: 1, month: 'Mês 1', title: 'Diagnóstico e Alinhamento', desc: 'Mapeamento da situação atual e definição de objetivos', checks: ['Cultura organizacional mapeada', 'Principais dores identificadas', 'Metas definidas e alinhadas'] },
-            { step: 2, month: 'Mês 1', title: 'Estrutura de RH', desc: 'Análise e organização da estrutura de recursos humanos', checks: ['Organograma revisado', 'Funções e responsabilidades claras', 'Gaps de competência identificados'] },
-            { step: 3, month: 'Mês 2', title: 'Atração e Recrutamento', desc: 'Estratégia para atrair os melhores talentos', checks: ['Employer branding definido', 'Processo seletivo estruturado', 'Job descriptions revisados'] },
-            { step: 4, month: 'Mês 2', title: 'Onboarding', desc: 'Programa de integração de novos colaboradores', checks: ['Processo de onboarding criado', 'Materiais de boas-vindas prontos', 'Buddy system implementado'] },
-            { step: 5, month: 'Mês 3', title: 'Avaliação de Desempenho', desc: 'Sistema de avaliação e feedback contínuo', checks: ['Modelo de avaliação escolhido', 'Critérios e pesos definidos', 'Ciclo de avaliação planejado'] },
-            { step: 6, month: 'Mês 3', title: 'Remuneração e Benefícios', desc: 'Política de remuneração competitiva e atrativa', checks: ['Pesquisa salarial realizada', 'Política de benefícios revisada', 'Plano de cargos e salários estruturado'] },
-            { step: 7, month: 'Mês 4', title: 'Treinamento e Desenvolvimento', desc: 'Plano de capacitação para evolução das equipes', checks: ['Matriz de treinamentos criada', 'Plano de PDI implementado', 'Trilhas de aprendizado definidas'] },
-            { step: 8, month: 'Mês 4', title: 'Clima e Engajamento', desc: 'Diagnóstico e plano de ação para engajamento', checks: ['Pesquisa de clima realizada', 'Principais pontos analisados', 'Plano de ação elaborado'] },
-            { step: 9, month: 'Mês 5', title: 'Liderança e Cultura', desc: 'Desenvolvimento de líderes e fortalecimento da cultura', checks: ['Perfil de liderança definido', 'Programa de desenvolvimento lançado', 'Valores organizacionais comunicados'] },
-            { step: 10, month: 'Mês 5', title: 'Processos e Compliance', desc: 'Regularização de processos e conformidade legal', checks: ['Processos mapeados e documentados', 'Conformidade legal verificada', 'Políticas internas atualizadas'] },
-            { step: 11, month: 'Mês 6', title: 'Indicadores de RH (KPIs)', desc: 'Implementação de métricas e dashboards de gestão', checks: ['KPIs de RH definidos', 'Dashboard de métricas criado', 'Rotina de análise estabelecida'] },
-            { step: 12, month: 'Mês 6', title: 'Revisão e Plano de Continuidade', desc: 'Consolidação dos resultados e próximos passos', checks: ['Resultados consolidados', 'Próximos passos definidos', 'Autonomia da equipe garantida'] },
-          ];
+          // 4. Cria os 12 roadmap_steps automaticamente para o cliente (se for default)
+          const createDefault = roadmapType !== 'empty'; // "empty" só vem do HTML se ele escolheu Vazio.
+          if (createDefault) {
+            const roadmapTemplate = ROADMAP_TEMPLATES[roadmapType] || ROADMAP_TEMPLATES['default'];
+            const customInfo = TEMPLATE_NAMES[roadmapType as keyof typeof TEMPLATE_NAMES] || TEMPLATE_NAMES['default'];
+            
+            // Atualiza os titulos de roadmap configurados para acompanhar o template escolhido
+            await supabaseAdmin.from('clients').update({
+                roadmap_title: customInfo.title,
+                roadmap_subtitle: customInfo.subtitle
+            }).eq('id', client.id);
 
-          const stepsToInsert = roadmapTemplate.map((item, i) => ({
-            client_id: client.id,
-            step_number: item.step,
-            title: item.title,
-            description: item.desc,
-            month_label: item.month,
-            status: i === 0 ? 'current' : 'locked',
-            notes: null,
-            checkmarks: item.checks.map(label => ({ label, checked: false })),
-            delivery_url: null,
-          }));
+            const stepsToInsert = roadmapTemplate.map((item, i) => ({
+              client_id: client.id,
+              step_number: item.step,
+              title: item.title,
+              description: item.desc,
+              month_label: item.month,
+              status: i === 0 ? 'current' : 'locked',
+              notes: null,
+              checkmarks: item.checks ? item.checks.map((label: string) => ({ label, checked: false })) : [],
+              delivery_url: null,
+            }));
 
-          await supabaseAdmin.from('roadmap_steps').insert(stepsToInsert);
+            await supabaseAdmin.from('roadmap_steps').insert(stepsToInsert);
+          }
 
           return Astro.redirect('/clients');
         }
@@ -102,8 +133,6 @@ if (Astro.request.method === 'POST') {
     }
   }
 }
-
-const { data: profile } = await db.from('profiles').select('role').eq('id', userId).single();
 
 // Lista clientes (ou todos se for MASTER)
 let query = db.from('clients').select('*');
@@ -197,7 +226,7 @@ const clientsWithProgress = await Promise.all(
           id="close-modal-btn"
         >✕</button>
       </div>
-      <form method="POST" class="p-6 space-y-4" id="add-client-form">
+      <form method="POST" class="p-6 space-y-4" id="add-client-form" enctype="multipart/form-data">
         {formError && (
           <div class="px-4 py-3 rounded-xl text-red-400 text-sm" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2);">
             ⚠️ {formError}
@@ -211,9 +240,37 @@ const clientsWithProgress = await Promise.all(
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Segmento</label>
           <input type="text" name="sector" class="input" placeholder="Ex: Tecnologia, Varejo, Saúde..." />
         </div>
+        {profile?.role === 'master' && (
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Modelo de Roadmap Inicial</label>
+          <select name="roadmap_type" class="input w-full text-sm [&>option]:bg-slate-900 [&>option]:text-white">
+            <option value="default" class="bg-slate-900 text-white">Consultoria de RH (Padrão 12 Passos)</option>
+            <option value="empty" class="bg-slate-900 text-white">Vazio (Totalmente Personalizado)</option>
+            <option value="onboarding_rh" class="bg-slate-900 text-white">Onboarding de Novos Colaboradores (90 Dias)</option>
+            <option value="sales_b2b" class="bg-slate-900 text-white">Máquina de Vendas B2B (Sales Ops)</option>
+            <option value="bpo_financeiro" class="bg-slate-900 text-white">Onboarding de BPO Financeiro (30 a 45 Dias)</option>
+            <option value="saas_impl" class="bg-slate-900 text-white">Sucesso do Cliente: Implantação (SaaS)</option>
+          </select>
+        </div>
+        )}
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">E-mail do Cliente *</label>
           <input type="email" name="client_email" required class="input" placeholder="rh@empresa.com.br" />
+        </div>
+        
+        <div class="p-4 rounded-xl border border-white/5 bg-white/5 space-y-3">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Personalização da Marca</label>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-[10px] text-slate-500 font-medium mb-1">Cor Principal (Opcional)</label>
+                    <input type="color" name="primary_color" value="#7c3aed" class="w-full h-10 p-1 cursor-pointer rounded-lg bg-black/20 border border-white/5" />
+                </div>
+                <div>
+                    <label class="block text-[10px] text-slate-500 font-medium mb-1">Logomarca da Empresa (Opcional)</label>
+                    <input type="file" name="logo_file" accept="image/*" class="input h-10 text-xs w-full file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-brand-500/20 file:text-brand-400 hover:file:bg-brand-500/30 cursor-pointer pt-2" />
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1">O cliente verá esta cor e esta logo no painel (roadmap) dele.</p>
         </div>
         <div>
           <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Senha Temporária *</label>

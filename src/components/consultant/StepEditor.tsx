@@ -26,6 +26,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
     const [newTask, setNewTask] = useState('');
     const [newDueDate, setNewDueDate] = useState('');
     const [addingTask, setAddingTask] = useState(false);
+    const [newCheckmark, setNewCheckmark] = useState('');
 
     // Autentica o cliente Supabase no browser com a sessão do usuário
     useEffect(() => {
@@ -49,6 +50,9 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                 checkmarks: merged.checkmarks,
                 delivery_url: merged.delivery_url,
                 status: merged.status,
+                title: merged.title,
+                description: merged.description,
+                month_label: merged.month_label,
                 updated_at: new Date().toISOString(),
             })
             .eq('id', merged.id);
@@ -61,11 +65,36 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
         }
     }, [step]);
 
+    const deleteStep = async () => {
+        if (!window.confirm('Tem certeza que deseja excluir este encontro permanentemente?')) return;
+        setSaving(true);
+        const { error } = await supabase.from('roadmap_steps').delete().eq('id', step.id);
+        if (!error) {
+            window.location.reload();
+        } else {
+            setSaveError('Erro ao excluir: ' + error.message);
+            setSaving(false);
+        }
+    };
+
     const toggleCheckmark = async (index: number) => {
         const newCheckmarks: Checkmark[] = step.checkmarks.map((c, i) =>
             i === index ? { ...c, checked: !c.checked } : c
         );
         await saveStep({ checkmarks: newCheckmarks });
+    };
+
+    const deleteCheckmark = async (index: number) => {
+        if (!window.confirm('Excluir este checkpoint?')) return;
+        const newCheckmarks = step.checkmarks.filter((_, i) => i !== index);
+        await saveStep({ checkmarks: newCheckmarks });
+    };
+
+    const addCheckmark = async () => {
+        if (!newCheckmark.trim()) return;
+        const newCheckmarks = [...step.checkmarks, { label: newCheckmark.trim(), checked: false }];
+        await saveStep({ checkmarks: newCheckmarks });
+        setNewCheckmark('');
     };
 
     const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -187,30 +216,95 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                         </div>
                     )}
 
+                    {/* Configurações do Encontro */}
+                    <div>
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                            ⚙️ Identificação do Encontro
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                            <div>
+                                <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">Título</label>
+                                <input 
+                                    className="input text-sm" 
+                                    value={step.title} 
+                                    onChange={(e) => setStep(s => ({...s, title: e.target.value}))}
+                                    onBlur={() => saveStep({title: step.title})}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">Mês/Etiqueta</label>
+                                <input 
+                                    className="input text-sm" 
+                                    value={step.month_label} 
+                                    onChange={(e) => setStep(s => ({...s, month_label: e.target.value}))}
+                                    onBlur={() => saveStep({month_label: step.month_label})}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] text-slate-500 uppercase font-bold mb-1">Descrição</label>
+                            <textarea 
+                                className="input text-sm w-full"
+                                rows={2}
+                                value={step.description} 
+                                onChange={(e) => setStep(s => ({...s, description: e.target.value}))}
+                                onBlur={() => saveStep({description: step.description})}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </div>
+                    </div>
+
                     {/* Checkpoints */}
                     <div>
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
                             ✓ Checkpoints da Reunião
                         </h4>
-                        <div className="space-y-2">
+                        <div className="space-y-2 mb-3">
                             {step.checkmarks.map((check, idx) => (
-                                <label
-                                    key={idx}
-                                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${check.checked ? 'bg-green-500/8' : 'hover:bg-white/3'
-                                        }`}
-                                    style={check.checked ? { border: '1px solid rgba(34,197,94,0.15)' } : { border: '1px solid rgba(255,255,255,0.04)' }}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={check.checked}
-                                        onChange={() => toggleCheckmark(idx)}
-                                        className="w-4 h-4 accent-purple-500 flex-shrink-0"
-                                    />
-                                    <span className={`text-sm ${check.checked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
-                                        {check.label}
-                                    </span>
-                                </label>
+                                <div key={idx} className="flex gap-2 items-center">
+                                    <label
+                                        className={`flex-1 flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all ${check.checked ? 'bg-green-500/8' : 'hover:bg-white/3'
+                                            }`}
+                                        style={check.checked ? { border: '1px solid rgba(34,197,94,0.15)' } : { border: '1px solid rgba(255,255,255,0.04)' }}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={check.checked}
+                                            onChange={() => toggleCheckmark(idx)}
+                                            className="w-4 h-4 accent-purple-500 flex-shrink-0"
+                                        />
+                                        <span className={`text-sm ${check.checked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
+                                            {check.label}
+                                        </span>
+                                    </label>
+                                    <button 
+                                        onClick={() => deleteCheckmark(idx)}
+                                        className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl text-slate-500 hover:text-red-400 hover:bg-red-400/10 transition-colors"
+                                        title="Remover Checkpoint"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
                             ))}
+                        </div>
+                        <div className="flex gap-2">
+                            <input
+                                type="text"
+                                placeholder="Novo checkpoint..."
+                                value={newCheckmark}
+                                onChange={(e) => setNewCheckmark(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && addCheckmark()}
+                                className="input text-sm flex-1"
+                            />
+                            <button 
+                                onClick={addCheckmark}
+                                disabled={!newCheckmark.trim()}
+                                className="btn-primary text-sm px-4 whitespace-nowrap bg-white/5 hover:bg-brand-500/20 text-brand-400 border-none rounded-xl"
+                            >
+                                + Add
+                            </button>
                         </div>
                     </div>
 
@@ -333,6 +427,9 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                             {step.status === 'completed' && (
                                 <span className="text-xs text-green-400 font-medium">Encontro concluído ✓</span>
                             )}
+                            <button onClick={deleteStep} className="btn-ghost text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 ml-2">
+                                🗑️ Excluir
+                            </button>
                         </div>
                     </div>
                 </div>

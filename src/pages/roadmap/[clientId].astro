@@ -41,6 +41,14 @@ const [{ data: steps = [] }, { data: tasks = [] }, { data: documents = [] }] = a
 ]);
 
 const progress = calcProgress((steps ?? []) as RoadmapStep[]);
+
+let finalLogoUrl = client.logo_url;
+if (finalLogoUrl && !finalLogoUrl.startsWith('http') && !finalLogoUrl.startsWith('data:')) {
+    const { data } = await db.storage.from('vault').createSignedUrl(finalLogoUrl, 3600); // 1hr
+    if (data?.signedUrl) {
+        finalLogoUrl = data.signedUrl;
+    }
+}
 ---
 
 <ClientLayout title={`Roadmap · ${client.name}`} clientName={client.name}>
@@ -54,5 +62,9 @@ const progress = calcProgress((steps ?? []) as RoadmapStep[]);
     progress={progress}
     accessToken={accessToken}
     refreshToken={refreshToken}
+    roadmapTitle={client.roadmap_title}
+    roadmapSubtitle={client.roadmap_subtitle}
+    primaryColor={client.primary_color}
+    logoUrl={finalLogoUrl}
   />
 </ClientLayout>

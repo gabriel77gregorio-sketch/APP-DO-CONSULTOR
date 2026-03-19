@@ -1,0 +1,30 @@
+
+[2026-03-19T10:44:14.234Z] POST SUBMISSION:
+- User role: master
+- roadmap_type input stringified: empty
+- formData map: [["name","teste3"],["sector","Turismo"],["roadmap_type","empty"],["client_email","gabriel777@gmail.com"],["password","100687"]]
+
+[2026-03-19T11:40:25.747Z] POST SUBMISSION:
+- User role: master
+- roadmap_type input stringified: empty
+- formData map: [["name","teste5"],["sector","Turismo"],["roadmap_type","empty"],["client_email","22@gmail.com"],["password","100687"]]
+
+[2026-03-19T11:43:14.310Z] POST SUBMISSION:
+- User role: master
+- roadmap_type input stringified: sales_b2b
+- formData map: [["name","teste6"],["sector","DOidera"],["roadmap_type","sales_b2b"],["client_email","66666@gmail.com"],["password","100687"]]
+
+[2026-03-19T11:52:25.737Z] POST SUBMISSION:
+- User role: master
+- roadmap_type input stringified: saas_impl
+- formData map: [["name","teste7"],["sector","DOidera"],["roadmap_type","saas_impl"],["client_email","gabriel5555@gmail.com"],["primary_color","#ff0000"],["logo_url",""],["password","100687"]]
+
+[2026-03-19T13:21:32.163Z] POST SUBMISSION:
+- User role: master
+- roadmap_type input stringified: default
+- formData map: [["name","teste23"],["sector","Turismo"],["roadmap_type","default"],["client_email","g22abriel@gmail.com"],["primary_color","#7c3aed"],["logo_file",{}],["password","100687"]]
+
+[2026-03-19T13:35:37.682Z] POST SUBMISSION:
+- User role: master
+- roadmap_type input stringified: empty
+- formData map: [["name","CLIENTE NOVO"],["sector","Turismo"],["roadmap_type","empty"],["client_email","123@gmail.com"],["primary_color","#00fbff"],["logo_file",{}],["password","123456"]]
