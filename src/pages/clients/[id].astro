@@ -93,7 +93,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
 ---
 
 <ConsultantLayout title={`Roadmap · ${client.name}`} activePage="clients">
-  <div class="p-4 md:p-8 animate-fade-in max-w-[100vw]">
+  <div id="client-detail-container" data-user-id={userId} class="p-4 md:p-8 animate-fade-in max-w-[100vw]">
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-8 gap-4">
       <div class="flex items-center gap-4">
@@ -105,19 +105,21 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
           {client.sector && <p class="text-slate-400 text-sm mt-0.5">{client.sector}</p>}
         </div>
       </div>
-      <!-- Progresso geral -->
-      <div class="glass px-5 py-3 text-right flex items-center gap-4">
-        <div>
+      <!-- Box Progresso e Lixeira -->
+      <div class="flex flex-wrap items-center gap-3">
+        <div id="client-overview-progress" class="glass px-5 py-3 text-right">
           <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Progresso</p>
-          <p class="text-2xl font-bold gradient-text">{progress}%</p>
-          <div class="progress-bar w-32 mt-1">
-            <div class="progress-fill" style={`width: ${progress}%`}></div>
+          <div class="flex items-center gap-3 justify-end mt-1">
+            <p class="text-2xl font-bold gradient-text leading-none">{progress}%</p>
+            <div class="progress-bar w-24">
+              <div class="progress-fill" style={`width: ${progress}%`}></div>
+            </div>
           </div>
         </div>
         <!-- Botão deletar cliente -->
         <form method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este cliente? Todos os dados serão removidos permanentemente.')">
           <input type="hidden" name="action" value="delete-client" />
-          <button type="submit" class="text-slate-600 hover:text-red-400 transition-colors text-xl" title="Excluir Cliente">
+          <button type="submit" class="glass h-full px-4 py-3 text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors flex items-center justify-center rounded-xl" title="Excluir Cliente">
             🗑️
           </button>
         </form>
@@ -127,7 +129,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <!-- Coluna principal: roadmap steps -->
       <div class="xl:col-span-2 space-y-3">
-        <div class="glass p-4 mb-4 relative group">
+        <div id="client-roadmap-header" class="glass p-4 mb-4 relative group">
           <form method="POST" class="flex flex-col gap-1">
             <input type="hidden" name="action" value="update-roadmap-info" />
             <div class="flex items-start justify-between">
@@ -169,7 +171,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
 
         <form method="POST" class="mt-4">
           <input type="hidden" name="action" value="add-meeting" />
-          <button type="submit" class="w-full mt-6 py-4 glass-hover flex items-center justify-center gap-2 text-brand-400 font-bold group cursor-pointer">
+          <button type="submit" id="add-first-meeting-btn" class="w-full mt-6 py-4 glass-hover flex items-center justify-center gap-2 text-brand-400 font-bold group cursor-pointer">
             <span class="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center group-hover:bg-brand-500/40 transition-colors">+</span>
             Adicionar Novo Checkpoint
           </button>
@@ -179,7 +181,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
       <!-- Sidebar direita -->
       <div class="space-y-5">
         <!-- Info do Cliente -->
-        <div class="glass p-5">
+        <div id="client-access-card" class="glass p-5">
           <h3 class="text-white font-bold mb-4">👤 Acesso do Cliente</h3>
           <div class="space-y-3">
             <div>
@@ -212,7 +214,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
         </div>
 
         {/* Cofre de Documentos */}
-        <div class="glass p-5">
+        <div id="client-vault-card" class="glass p-5">
           <h3 class="text-white font-bold mb-4">🗄️ Cofre de Documentos</h3>
           
           {/* Upload de arquivos vai para o frontend para evitar PayloadTooLarge da Vercel */}
@@ -287,11 +289,102 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
             el.select();
             document.execCommand('copy');
             document.body.removeChild(el);
-            copyBtn.innerHTML = '<span>✅</span> Copiado!';
+            copyBtn.innerHTML = '<span>✅</span> Copiado!'; // Mostrar notificação e sumir após 3s
             setTimeout(() => { copyBtn.innerHTML = '<span>📋</span> Copiar Link'; }, 3000);
           });
         }
       });
     }
+  </script>
+
+  <script>
+    import { driver } from "driver.js";
+    import "driver.js/dist/driver.css";
+
+    const initTourDetail = () => {
+      const container = document.getElementById('client-detail-container');
+      const tourUserId = container?.getAttribute('data-user-id') || 'generic';
+      const storageKey = `ob_client_detail_dash_${tourUserId}`;
+
+      // O onboarding para os detalhes do cliente
+      if (!localStorage.getItem(storageKey)) {
+        const steps: any[] = [];
+        
+        steps.push({
+          element: '#client-roadmap-header',
+          popover: {
+            title: 'Personalize o Roadmap',
+            description: 'Você pode clicar nos textos aqui para editar o Título e Subtítulo visíveis para o seu cliente.',
+            side: "bottom",
+            align: 'start'
+          }
+        });
+
+        if (document.getElementById('client-overview-progress')) {
+          steps.push({
+            element: '#client-overview-progress',
+            popover: {
+              title: 'Progresso Geral',
+              description: 'Aqui você acompanha a porcentagem de evolução de todos os checkpoints abertos da empresa.',
+              side: "bottom",
+              align: 'end'
+            }
+          });
+        }
+
+        steps.push({
+          element: '#add-first-meeting-btn',
+          popover: {
+            title: 'Crie seu 1º Checkpoint',
+            description: 'Para iniciar a jornada, adicione o primeiro checkpoint. Dentro dele você poderá criar tarefas, colocar notas e anexos.',
+            side: "top",
+            align: 'center'
+          }
+        });
+
+        if (document.getElementById('client-access-card')) {
+          steps.push({
+            element: '#client-access-card',
+            popover: {
+              title: 'Acesso Exclusivo',
+              description: 'Clique em "Copiar Link" e envie para o cliente. Quando ele acessar, verá um painel incrível para acompanhar o projeto (sem edição).',
+              side: "left",
+              align: 'start'
+            }
+          });
+        }
+
+        if (document.getElementById('client-vault-card')) {
+          steps.push({
+            element: '#client-vault-card',
+            popover: {
+              title: 'Cofre e Materiais',
+              description: 'Envie planilhas, PDFs e materiais por aqui. Tudo fica salvo e organizado no cofre digital do cliente.',
+              side: "left",
+              align: 'start'
+            }
+          });
+        }
+
+        const driverObj = driver({
+          showProgress: true,
+          nextBtnText: 'Próximo →',
+          prevBtnText: '← Anterior',
+          doneBtnText: 'Entendi!',
+          steps: steps,
+          onDestroyStarted: () => {
+            if (!driverObj.hasNextStep() || confirm("Deseja pular as dicas?")) {
+              localStorage.setItem(storageKey, 'true');
+              driverObj.destroy();
+            }
+          },
+        });
+
+        setTimeout(() => driverObj.drive(), 500);
+      }
+    };
+
+    initTourDetail();
+    document.addEventListener('astro:page-load', initTourDetail);
   </script>
 </ConsultantLayout>

@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import type { RoadmapStep, Task, Document } from '../../lib/supabase';
 import { supabase } from '../../lib/supabase';
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 interface Props {
     steps: RoadmapStep[];
@@ -98,6 +100,64 @@ export default function RoadmapTimeline({
             });
         }
     }, [accessToken, refreshToken]);
+
+    // Onboarding Guiado para o Cliente
+    useEffect(() => {
+        if (!localStorage.getItem(`ob_client_view_${clientId}`)) {
+            const driverObj = driver({
+                showProgress: true,
+                nextBtnText: 'Próximo →',
+                prevBtnText: '← Anterior',
+                doneBtnText: 'Entendi!',
+                steps: [
+                    {
+                        element: '#client-hero-section',
+                        popover: {
+                            title: 'Bem-vindo ao seu Portal 🎉',
+                            description: 'Aqui você acompanha toda a sua jornada da consultoria, seu progresso e seus próximos passos.',
+                            side: "bottom",
+                            align: 'center'
+                        }
+                    },
+                    {
+                        element: '#tabs-container',
+                        popover: {
+                            title: 'Navegação Simples',
+                            description: 'Navegue entre o mapa da sua jornada, suas pendências e os documentos do projeto (cofre).',
+                            side: "bottom",
+                            align: 'center'
+                        }
+                    },
+                    {
+                        element: '#tab-tasks',
+                        popover: {
+                            title: 'Suas Pendências 📋',
+                            description: 'Sempre que houver alguma tarefa que você precisa realizar, ela aparecerá aqui.',
+                            side: "bottom",
+                            align: 'center'
+                        }
+                    },
+                    {
+                        element: '#tab-vault',
+                        popover: {
+                            title: 'Cofre de Documentos 🗄️',
+                            description: 'Todos os materiais entregues e trocados ficam seguros aqui. Você também pode enviar arquivos.',
+                            side: "bottom",
+                            align: 'center'
+                        }
+                    }
+                ],
+                onDestroyStarted: () => {
+                    if (!driverObj.hasNextStep() || window.confirm("Deseja pular as dicas?")) {
+                        localStorage.setItem(`ob_client_view_${clientId}`, 'true');
+                        driverObj.destroy();
+                    }
+                },
+            });
+
+            setTimeout(() => driverObj.drive(), 800);
+        }
+    }, [clientId]);
 
     // Upload states
     const [uploading, setUploading] = useState(false);
@@ -200,7 +260,7 @@ export default function RoadmapTimeline({
     return (
         <div>
             {/* Hero Section */}
-            <div className="glass p-6 md:p-8 mb-6 md:mb-8 text-center relative overflow-hidden" style={{ borderTop: `4px solid ${primaryColor}` }}>
+            <div id="client-hero-section" className="glass p-6 md:p-8 mb-6 md:mb-8 text-center relative overflow-hidden" style={{ borderTop: `4px solid ${primaryColor}` }}>
                 {logoUrl ? (
                     <img src={logoUrl} alt={clientName} className="h-12 w-auto mx-auto mb-4 object-contain rounded-lg" />
                 ) : (
@@ -227,7 +287,7 @@ export default function RoadmapTimeline({
             </div>
 
             {/* Tabs */}
-            <div className="flex flex-nowrap overflow-x-auto gap-1 mb-6 p-1 rounded-xl no-scrollbar"
+            <div id="tabs-container" className="flex flex-nowrap overflow-x-auto gap-1 mb-6 p-1 rounded-xl no-scrollbar"
                 style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
                 {([
                     { key: 'roadmap', label: '🗺️ Minha Jornada' },
@@ -236,6 +296,7 @@ export default function RoadmapTimeline({
                 ] as { key: 'roadmap' | 'vault' | 'tasks'; label: string }[]).map(tab => (
                     <button
                         key={tab.key}
+                        id={`tab-${tab.key}`}
                         onClick={() => setActiveTab(tab.key)}
                         className={`flex-1 min-w-[max-content] px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab.key ? 'text-white' : 'text-slate-500 hover:text-slate-300'
                             }`}

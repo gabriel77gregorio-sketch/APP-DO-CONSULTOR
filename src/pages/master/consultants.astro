@@ -74,15 +74,22 @@ if (Astro.request.method === 'POST') {
 // Lista consultores cruzando Auth + profiles
 let consultants: any[] = [];
 if (supabaseAdmin) {
-  const [{ data: { users: authUsers } }, { data: profiles }] = await Promise.all([
-    supabaseAdmin.auth.admin.listUsers(),
-    supabaseAdmin.from('profiles').select('*').eq('role', 'consultant'),
-  ]);
+  const { data: profiles } = await supabaseAdmin.from('profiles').select('*').eq('role', 'consultant');
   
-  consultants = (profiles ?? []).map((p: any) => {
-    const authUser = authUsers.find((u: any) => u.id === p.id);
-    return { ...p, email: authUser?.email ?? '—', last_sign_in: authUser?.last_sign_in_at };
-  }).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  if (profiles) {
+    consultants = await Promise.all(
+      profiles.map(async (p: any) => {
+        const { data: userData } = await supabaseAdmin.auth.admin.getUserById(p.id);
+        const authUser = userData?.user;
+        return { 
+          ...p, 
+          email: authUser?.email ?? '—', 
+          last_sign_in: authUser?.last_sign_in_at 
+        };
+      })
+    );
+    consultants.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }
 }
 ---
 

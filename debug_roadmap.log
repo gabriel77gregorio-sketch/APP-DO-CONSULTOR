@@ -28,3 +28,43 @@
 - User role: master
 - roadmap_type input stringified: empty
 - formData map: [["name","CLIENTE NOVO"],["sector","Turismo"],["roadmap_type","empty"],["client_email","123@gmail.com"],["primary_color","#00fbff"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T12:10:24.204Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","teste4"],["sector","Sorveteria4"],["roadmap_type","empty"],["client_email","123@gmail.com"],["primary_color","#7c3aed"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T12:11:49.565Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","teste4"],["sector","Sorveteria4"],["roadmap_type","empty"],["client_email","123@gmail.com"],["primary_color","#7c3aed"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T12:12:04.001Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","teste4"],["sector","Sorveteria4"],["roadmap_type","empty"],["client_email","123@gmail.com"],["primary_color","#7c3aed"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T12:23:46.796Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","teste4"],["sector","Sorveteria4"],["roadmap_type","empty"],["client_email","123@gmail.com"],["primary_color","#7c3aed"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T12:30:21.238Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","EMPRESA 01"],["sector","Segmento"],["roadmap_type","empty"],["client_email","EMPRESA@GMAIL.COM.BR"],["primary_color","#7c3aed"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T13:15:08.682Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","Harpia Nutrição "],["sector","Nutrição animal"],["roadmap_type","empty"],["client_email","harpia@gmail.com"],["primary_color","#04e600"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T13:45:15.101Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","fdfgfd"],["sector","dfgfg"],["roadmap_type","empty"],["client_email","fgdf@gmail.com"],["primary_color","#7c3aed"],["logo_file",{}],["password","123456"]]
+
+[2026-03-25T16:29:44.728Z] POST SUBMISSION:
+- User role: consultant
+- roadmap_type input stringified: empty
+- formData map: [["name","TESTE1"],["sector","loucura"],["roadmap_type","empty"],["client_email","loks@gmail.com"],["primary_color","#7c3aed"],["logo_file",{}],["password","123456"]]
