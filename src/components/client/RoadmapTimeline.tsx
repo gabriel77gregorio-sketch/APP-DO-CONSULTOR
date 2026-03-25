@@ -212,7 +212,7 @@ export default function RoadmapTimeline({
                 
                 <div className="absolute inset-0 pointer-events-none"
                     style={{ background: `radial-gradient(ellipse at center, ${primaryColor}15 0%, transparent 70%)` }} />
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{roadmapTitle || 'Jornada dos 12 Encontros'}</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{roadmapTitle || 'Jornada dos 12 Checkpoints'}</h1>
                 <p className="text-slate-300 text-sm md:text-base font-medium mb-1">{clientName}</p>
                 <p className="text-slate-400 text-xs md:text-sm mb-6">{roadmapSubtitle || 'Um plano de desenvolvimento personalizado'}</p>
                 <div className="flex justify-center mb-4">
@@ -221,7 +221,7 @@ export default function RoadmapTimeline({
                 {currentStep && (
                     <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
                         style={{ color: primaryColor, background: `${primaryColor}15`, border: `1px solid ${primaryColor}40` }}>
-                        🔵 Em andamento: Encontro {currentStep.step_number} — {currentStep.title}
+                        🔵 Em andamento: Checkpoint {currentStep.step_number} — {currentStep.title}
                     </div>
                 )}
             </div>
@@ -303,7 +303,7 @@ export default function RoadmapTimeline({
                                         <div className="flex-1 min-w-0 text-left">
                                             <p className="text-xs text-slate-500 mb-0.5">{step.month_label}</p>
                                             <h3 className={`font-semibold text-sm ${step.status === 'locked' ? 'text-slate-600' : 'text-white'}`}>
-                                                Encontro {step.step_number}: {step.title}
+                                                Checkpoint {step.step_number}: {step.title}
                                             </h3>
                                         </div>
 
@@ -321,7 +321,7 @@ export default function RoadmapTimeline({
                                             {/* Checkmarks */}
                                             {step.checkmarks.length > 0 && (
                                                 <div>
-                                                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Objetivos do Encontro</p>
+                                                    <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-2">Objetivos do Checkpoint</p>
                                                     <div className="space-y-1.5">
                                                         {step.checkmarks.map((c, i) => (
                                                             <div key={i} className="flex items-center gap-2">
@@ -398,7 +398,7 @@ export default function RoadmapTimeline({
                         <div className="text-center py-12">
                             <p className="text-4xl mb-3">🎉</p>
                             <p className="text-slate-500 text-sm">Nenhuma pendência atribuída ainda</p>
-                            <p className="text-slate-600 text-xs mt-1">Seu consultor criará tarefas conforme os encontros evoluem</p>
+                            <p className="text-slate-600 text-xs mt-1">Seu consultor criará tarefas conforme os checkpoints evoluem</p>
                         </div>
                     )}
                     {myTasks.length > 0 && (

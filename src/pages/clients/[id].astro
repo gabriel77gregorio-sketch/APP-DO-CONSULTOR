@@ -54,7 +54,7 @@ if (Astro.request.method === 'POST') {
     await db.from('clients').delete().eq('id', id);
     return Astro.redirect('/clients');
   } else if (action === 'update-roadmap-info') {
-    const title = formData.get('roadmap_title')?.toString() || 'Jornada dos 12 Encontros';
+    const title = formData.get('roadmap_title')?.toString() || 'Jornada dos 12 Checkpoints';
     const subtitle = formData.get('roadmap_subtitle')?.toString() || 'Um plano de desenvolvimento personalizado';
     await db.from('clients').update({ roadmap_title: title, roadmap_subtitle: subtitle }).eq('id', id);
   } else if (action === 'add-meeting') {
@@ -64,16 +64,16 @@ if (Astro.request.method === 'POST') {
     const { error: insertError } = await db.from('roadmap_steps').insert({
       client_id: id,
       step_number: maxStep + 1,
-      title: 'Novo Encontro',
-      description: 'Descrição do novo encontro',
-      month_label: 'Mês ' + (Math.floor((maxStep + 1) / 2) + 1),
+      title: 'Novo Checkpoint',
+      description: 'Descrição do novo checkpoint',
+      month_label: '',
       status: maxStep === 0 ? 'current' : 'locked',
       notes: null,
       checkmarks: [],
       delivery_url: null,
     });
     if (insertError) {
-      console.error("ERRO AO CRIAR ENCONTRO:", insertError);
+      console.error("ERRO AO CRIAR CHECKPOINT:", insertError);
     }
   }
 
@@ -131,12 +131,10 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
           <form method="POST" class="flex flex-col gap-1">
             <input type="hidden" name="action" value="update-roadmap-info" />
             <div class="flex items-start justify-between">
-              <input 
-                type="text" 
-                name="roadmap_title" 
-                value={client.roadmap_title || 'Jornada dos 12 Encontros'} 
-                class="bg-transparent border-none text-white font-bold text-lg p-0 focus:ring-0 w-full placeholder-slate-500 hover:bg-white/5 rounded px-2 -ml-2 transition-colors"
-                placeholder="Ex: Jornada dos 12 Encontros"
+              <input type="text" name="roadmap_title" 
+                value={client.roadmap_title || 'Jornada dos 12 Checkpoints'} 
+                class="bg-transparent border-none text-2xl md:text-3xl font-bold text-white mb-1 focus:ring-0 p-0 w-full placeholder-white/30"
+                placeholder="Ex: Jornada dos 12 Checkpoints"
               />
               <button type="submit" class="opacity-0 group-hover:opacity-100 text-xs px-3 py-1 bg-brand-500/20 text-brand-400 hover:bg-brand-500/40 rounded-lg transition-all flex-shrink-0 ml-2">Salvar Info</button>
             </div>
@@ -151,10 +149,10 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
         </div>
 
         {(steps as RoadmapStep[]).length === 0 ? (
-          <div class="glass p-12 text-center">
+          <div class="glass p-12 text-center mt-6">
             <p class="text-4xl mb-3">📋</p>
-            <p class="text-slate-400 text-sm">Nenhum encontro encontrado para este cliente.</p>
-            <p class="text-slate-600 text-xs mt-1">Crie um novo encontro clicando no botão abaixo.</p>
+            <p class="text-slate-400 text-sm">Nenhum checkpoint encontrado para este cliente.</p>
+            <p class="text-slate-600 text-xs mt-1">Crie um novo checkpoint clicando no botão abaixo.</p>
           </div>
         ) : (
           (steps as RoadmapStep[]).map((step, idx) => (
@@ -171,9 +169,9 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
 
         <form method="POST" class="mt-4">
           <input type="hidden" name="action" value="add-meeting" />
-          <button type="submit" class="w-full glass border-dashed border-white/20 hover:border-brand-500/50 justify-center text-slate-400 hover:text-white py-4 flex items-center gap-2 group transition-all">
-            <span class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-brand-500/20 group-hover:text-brand-400 transition-colors">+</span>
-            Adicionar Novo Encontro
+          <button type="submit" class="w-full mt-6 py-4 glass-hover flex items-center justify-center gap-2 text-brand-400 font-bold group cursor-pointer">
+            <span class="w-6 h-6 rounded-full bg-brand-500/20 flex items-center justify-center group-hover:bg-brand-500/40 transition-colors">+</span>
+            Adicionar Novo Checkpoint
           </button>
         </form>
       </div>
