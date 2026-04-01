@@ -184,7 +184,7 @@ const { data: logsData } = await db.from('notification_logs')
                       {log.status === 'success' ? 'Enviado' : 'Erro'}
                     </span>
                     <span class="text-[10px] text-slate-500">
-                      {new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' })}
                     </span>
                   </div>
                   <span class="text-xs font-semibold text-slate-700 capitalize">{log.event_type.replace(/_/g, ' ')}</span>
