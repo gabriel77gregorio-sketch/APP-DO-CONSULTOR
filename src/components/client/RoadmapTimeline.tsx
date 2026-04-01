@@ -63,8 +63,8 @@ function ProgressRing({ progress, primaryColor }: { progress: number, primaryCol
                 />
             </svg>
             <div className="absolute text-center">
-                <span className="text-3xl font-bold text-white">{progress}%</span>
-                <span className="block text-xs text-slate-400">completo</span>
+                <span className="text-3xl font-bold text-slate-800">{progress}%</span>
+                <span className="block text-xs text-slate-500">completo</span>
             </div>
         </div>
     );
@@ -264,7 +264,7 @@ export default function RoadmapTimeline({
                 {logoUrl ? (
                     <img src={logoUrl} alt={clientName} className="h-12 w-auto mx-auto mb-4 object-contain rounded-lg" />
                 ) : (
-                    <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-white shadow-lg"
+                    <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center text-3xl font-bold text-slate-800 shadow-lg"
                         style={{ background: `linear-gradient(135deg, ${primaryColor}80, ${primaryColor})` }}>
                         {clientName.charAt(0).toUpperCase()}
                     </div>
@@ -272,9 +272,9 @@ export default function RoadmapTimeline({
                 
                 <div className="absolute inset-0 pointer-events-none"
                     style={{ background: `radial-gradient(ellipse at center, ${primaryColor}15 0%, transparent 70%)` }} />
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">{roadmapTitle || 'Jornada dos 12 Checkpoints'}</h1>
-                <p className="text-slate-300 text-sm md:text-base font-medium mb-1">{clientName}</p>
-                <p className="text-slate-400 text-xs md:text-sm mb-6">{roadmapSubtitle || 'Um plano de desenvolvimento personalizado'}</p>
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-800 mb-1">{roadmapTitle || 'Jornada dos 12 Checkpoints'}</h1>
+                <p className="text-slate-600 text-sm md:text-base font-medium mb-1">{clientName}</p>
+                <p className="text-slate-500 text-xs md:text-sm mb-6">{roadmapSubtitle || 'Um plano de desenvolvimento personalizado'}</p>
                 <div className="flex justify-center mb-4">
                     <ProgressRing progress={progress} primaryColor={primaryColor} />
                 </div>
@@ -298,7 +298,7 @@ export default function RoadmapTimeline({
                         key={tab.key}
                         id={`tab-${tab.key}`}
                         onClick={() => setActiveTab(tab.key)}
-                        className={`flex-1 min-w-[max-content] px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab.key ? 'text-white' : 'text-slate-500 hover:text-slate-300'
+                        className={`flex-1 min-w-[max-content] px-4 py-2.5 rounded-lg text-xs md:text-sm font-semibold transition-all whitespace-nowrap ${activeTab === tab.key ? 'text-slate-800' : 'text-slate-500 hover:text-slate-600'
                             }`}
                         style={activeTab === tab.key ? { background: `${primaryColor}30`, color: primaryColor } : {}}
                     >
@@ -363,7 +363,7 @@ export default function RoadmapTimeline({
                                         {/* Info */}
                                         <div className="flex-1 min-w-0 text-left">
                                             <p className="text-xs text-slate-500 mb-0.5">{step.month_label}</p>
-                                            <h3 className={`font-semibold text-sm ${step.status === 'locked' ? 'text-slate-600' : 'text-white'}`}>
+                                            <h3 className={`font-semibold text-sm ${step.status === 'locked' ? 'text-slate-600' : 'text-slate-800'}`}>
                                                 Checkpoint {step.step_number}: {step.title}
                                             </h3>
                                         </div>
@@ -376,8 +376,8 @@ export default function RoadmapTimeline({
 
                                     {/* Expandido */}
                                     {isActive && step.status !== 'locked' && (
-                                        <div className="border-t border-white/5 px-4 pb-4 pt-3 text-left space-y-4">
-                                            <p className="text-slate-400 text-sm">{step.description}</p>
+                                        <div className="border-t border-slate-200 px-4 pb-4 pt-3 text-left space-y-4">
+                                            <p className="text-slate-500 text-sm">{step.description}</p>
 
                                             {/* Checkmarks */}
                                             {step.checkmarks.length > 0 && (
@@ -389,7 +389,7 @@ export default function RoadmapTimeline({
                                                                 <span className={`text-base flex-shrink-0 ${c.checked ? 'text-green-400' : 'text-slate-600'}`}>
                                                                     {c.checked ? '✅' : '⬜'}
                                                                 </span>
-                                                                <span className={`text-sm ${c.checked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
+                                                                <span className={`text-sm ${c.checked ? 'line-through text-slate-500' : 'text-slate-600'}`}>
                                                                     {c.label}
                                                                 </span>
                                                             </div>
@@ -403,7 +403,7 @@ export default function RoadmapTimeline({
                                                 <div className="p-3 rounded-xl"
                                                     style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
                                                     <p className="text-xs font-semibold mb-1" style={{ color: '#a78bfa' }}>📝 Nota do Consultor</p>
-                                                    <p className="text-slate-300 text-sm">{step.notes}</p>
+                                                    <p className="text-slate-600 text-sm">{step.notes}</p>
                                                 </div>
                                             )}
 
@@ -429,7 +429,7 @@ export default function RoadmapTimeline({
                                                                     onChange={() => toggleTask(task.id, task.completed)}
                                                                     className="w-4 h-4 accent-amber-500"
                                                                 />
-                                                                <span className={`text-sm ${task.completed ? 'line-through text-slate-600' : 'text-slate-300'}`}>
+                                                                <span className={`text-sm ${task.completed ? 'line-through text-slate-600' : 'text-slate-600'}`}>
                                                                     {task.description}
                                                                     {task.due_date && (
                                                                         <span className="block text-[10px] text-amber-500/70 mt-0.5 font-medium">
@@ -454,7 +454,7 @@ export default function RoadmapTimeline({
             {/* ===== Tab: Pendências ===== */}
             {activeTab === 'tasks' && (
                 <div className="glass p-6">
-                    <h3 className="text-white font-bold mb-4">📋 Minhas Pendências</h3>
+                    <h3 className="text-slate-800 font-bold mb-4">📋 Minhas Pendências</h3>
                     {myTasks.length === 0 && completedTasks.length === 0 && (
                         <div className="text-center py-12">
                             <p className="text-4xl mb-3">🎉</p>
@@ -510,7 +510,7 @@ export default function RoadmapTimeline({
                 <div className="glass p-6">
                     <div className="flex items-start justify-between mb-2">
                         <div>
-                            <h3 className="text-white font-bold">🗄️ Cofre de Documentos</h3>
+                            <h3 className="text-slate-800 font-bold">🗄️ Cofre de Documentos</h3>
                             <p className="text-slate-500 text-xs mt-0.5">Materiais da consultoria e arquivos enviados por você</p>
                         </div>
                         <button
@@ -535,7 +535,7 @@ export default function RoadmapTimeline({
                     {uploading && (
                         <div className="mb-4 p-3 rounded-xl" style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.2)' }}>
                             <div className="flex items-center justify-between mb-1.5">
-                                <span className="text-xs text-slate-400">Enviando arquivo...</span>
+                                <span className="text-xs text-slate-500">Enviando arquivo...</span>
                                 <span className="text-xs font-bold" style={{ color: '#a78bfa' }}>{uploadProgress}%</span>
                             </div>
                             <div className="progress-bar">
@@ -565,7 +565,7 @@ export default function RoadmapTimeline({
                         onClick={() => fileInputRef.current?.click()}
                     >
                         <p className="text-2xl mb-1">📂</p>
-                        <p className="text-slate-400 text-xs">Arraste um arquivo ou <span style={{ color: '#a78bfa' }}>clique para selecionar</span></p>
+                        <p className="text-slate-500 text-xs">Arraste um arquivo ou <span style={{ color: '#a78bfa' }}>clique para selecionar</span></p>
                         <p className="text-slate-600 text-xs mt-1">PDF, Word, Excel, PowerPoint, imagens · Máx. 50MB</p>
                     </div>
 

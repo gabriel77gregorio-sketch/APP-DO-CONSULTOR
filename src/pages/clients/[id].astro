@@ -97,18 +97,18 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-6 md:mb-8 gap-4">
       <div class="flex items-center gap-4">
-        <a href="/clients" class="text-slate-400 hover:text-white transition-colors text-sm flex items-center gap-1">
+        <a href="/clients" class="text-slate-500 hover:text-slate-800 transition-colors text-sm flex items-center gap-1">
           ← Voltar
         </a>
         <div>
-          <h1 class="text-2xl font-bold text-white">{client.name}</h1>
-          {client.sector && <p class="text-slate-400 text-sm mt-0.5">{client.sector}</p>}
+          <h1 class="text-2xl font-bold text-slate-800">{client.name}</h1>
+          {client.sector && <p class="text-slate-500 text-sm mt-0.5">{client.sector}</p>}
         </div>
       </div>
       <!-- Box Progresso e Lixeira -->
       <div class="flex flex-wrap items-center gap-3">
         <div id="client-overview-progress" class="glass px-5 py-3 text-right">
-          <p class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Progresso</p>
+          <p class="text-slate-500 text-xs font-semibold uppercase tracking-wider">Progresso</p>
           <div class="flex items-center gap-3 justify-end mt-1">
             <p class="text-2xl font-bold gradient-text leading-none">{progress}%</p>
             <div class="progress-bar w-24">
@@ -116,10 +116,14 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
             </div>
           </div>
         </div>
+        <!-- Botão Configurações -->
+        <a href={`/clients/settings/${id}`} class="glass h-full px-4 py-3 text-slate-600 hover:text-brand-600 hover:bg-brand-50 transition-colors flex items-center justify-center rounded-xl" title="Configurações de Comunicação">
+          ⚙️
+        </a>
         <!-- Botão deletar cliente -->
         <form method="POST" onsubmit="return confirm('Tem certeza que deseja excluir este cliente? Todos os dados serão removidos permanentemente.')">
           <input type="hidden" name="action" value="delete-client" />
-          <button type="submit" class="glass h-full px-4 py-3 text-slate-600 hover:text-red-400 hover:bg-red-400/10 transition-colors flex items-center justify-center rounded-xl" title="Excluir Cliente">
+          <button type="submit" class="glass h-full px-4 py-3 text-slate-600 hover:text-red-500 hover:bg-red-50 transition-colors flex items-center justify-center rounded-xl" title="Excluir Cliente">
             🗑️
           </button>
         </form>
@@ -135,7 +139,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
             <div class="flex items-start justify-between">
               <input type="text" name="roadmap_title" 
                 value={client.roadmap_title || 'Jornada dos 12 Checkpoints'} 
-                class="bg-transparent border-none text-2xl md:text-3xl font-bold text-white mb-1 focus:ring-0 p-0 w-full placeholder-white/30"
+                class="bg-transparent border-none text-2xl md:text-3xl font-bold text-slate-800 mb-1 focus:ring-0 p-0 w-full placeholder-white/30"
                 placeholder="Ex: Jornada dos 12 Checkpoints"
               />
               <button type="submit" class="opacity-0 group-hover:opacity-100 text-xs px-3 py-1 bg-brand-500/20 text-brand-400 hover:bg-brand-500/40 rounded-lg transition-all flex-shrink-0 ml-2">Salvar Info</button>
@@ -144,7 +148,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
               type="text" 
               name="roadmap_subtitle" 
               value={client.roadmap_subtitle || 'Um plano de desenvolvimento personalizado'} 
-              class="bg-transparent border-none text-slate-400 text-sm p-0 focus:ring-0 w-full placeholder-slate-600 hover:bg-white/5 rounded px-2 -ml-2 transition-colors"
+              class="bg-transparent border-none text-slate-500 text-sm p-0 focus:ring-0 w-full placeholder-slate-600 hover:bg-slate-50 rounded px-2 -ml-2 transition-colors"
               placeholder="Escreva um subtítulo descritivo..."
             />
           </form>
@@ -153,7 +157,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
         {(steps as RoadmapStep[]).length === 0 ? (
           <div class="glass p-12 text-center mt-6">
             <p class="text-4xl mb-3">📋</p>
-            <p class="text-slate-400 text-sm">Nenhum checkpoint encontrado para este cliente.</p>
+            <p class="text-slate-500 text-sm">Nenhum checkpoint encontrado para este cliente.</p>
             <p class="text-slate-600 text-xs mt-1">Crie um novo checkpoint clicando no botão abaixo.</p>
           </div>
         ) : (
@@ -182,7 +186,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
       <div class="space-y-5">
         <!-- Info do Cliente -->
         <div id="client-access-card" class="glass p-5">
-          <h3 class="text-white font-bold mb-4">👤 Acesso do Cliente</h3>
+          <h3 class="text-slate-800 font-bold mb-4">👤 Acesso do Cliente</h3>
           <div class="space-y-3">
             <div>
               <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Email</p>
@@ -201,7 +205,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
             </div>
             <div>
               <p class="text-slate-500 text-xs uppercase tracking-wider mb-1">Cliente desde</p>
-              <p class="text-slate-300 text-sm">{new Date(client.created_at).toLocaleDateString('pt-BR')}</p>
+              <p class="text-slate-600 text-sm">{new Date(client.created_at).toLocaleDateString('pt-BR')}</p>
             </div>
             <a
               href={`/roadmap/${client.id}`}
@@ -215,14 +219,14 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
 
         {/* Cofre de Documentos */}
         <div id="client-vault-card" class="glass p-5">
-          <h3 class="text-white font-bold mb-4">🗄️ Cofre de Documentos</h3>
+          <h3 class="text-slate-800 font-bold mb-4">🗄️ Cofre de Documentos</h3>
           
           {/* Upload de arquivos vai para o frontend para evitar PayloadTooLarge da Vercel */}
           <VaultUploader client:load clientId={id} />
 
           {/* Lista de documentos */}
           {documents.length === 0 ? (
-            <p class="text-slate-500 text-sm py-8 text-center bg-white/5 rounded-xl border border-dashed border-white/10">Nenhum arquivo no cofre ainda.</p>
+            <p class="text-slate-500 text-sm py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-300">Nenhum arquivo no cofre ainda.</p>
           ) : (
             <div class="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
               {(documents as Document[]).map((doc) => (
@@ -232,7 +236,7 @@ const roadmapLink = `${baseUrl}/roadmap/${client.id}`;
                       {doc.file_type?.includes('pdf') ? '📕' : doc.file_type?.includes('image') ? '🖼️' : doc.file_type?.includes('sheet') ? '📗' : '📄'}
                     </span>
                     <div class="overflow-hidden">
-                      <p class="text-white text-xs font-medium truncate">{doc.name}</p>
+                      <p class="text-slate-800 text-xs font-medium truncate">{doc.name}</p>
                       <p class="text-slate-500 text-[10px] mt-0.5">
                         {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB · ` : ''}
                         {new Date(doc.uploaded_at).toLocaleDateString('pt-BR')}

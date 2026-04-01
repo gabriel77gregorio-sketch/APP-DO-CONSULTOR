@@ -62,7 +62,7 @@ export default function VaultUploader({ clientId }: { clientId: string }) {
         onMouseLeave={(e) => !uploading && (e.currentTarget.style.borderColor = 'rgba(124,58,237,0.3)')}
       >
         <span className="text-2xl mb-1">{uploading ? '⏳' : '📁'}</span>
-        <span className="text-slate-400 text-xs text-center">
+        <span className="text-slate-500 text-xs text-center">
           {uploading ? 'Enviando arquivo...' : 'Clique para enviar um documento'}
         </span>
         <input 

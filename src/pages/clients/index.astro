@@ -154,8 +154,8 @@ const clientsWithProgress = await Promise.all(
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 sm:gap-0 mb-6 md:mb-8">
       <div>
-        <h1 class="text-2xl font-bold text-white">Meus Clientes</h1>
-        <p class="text-slate-400 text-sm mt-1">{clientsWithProgress.length} empresa{clientsWithProgress.length !== 1 ? 's' : ''} na carteira</p>
+        <h1 class="text-2xl font-bold text-slate-800">Meus Clientes</h1>
+        <p class="text-slate-500 text-sm mt-1">{clientsWithProgress.length} empresa{clientsWithProgress.length !== 1 ? 's' : ''} na carteira</p>
       </div>
       <button
         onclick="document.getElementById('add-client-modal').classList.remove('hidden')"
@@ -170,8 +170,8 @@ const clientsWithProgress = await Promise.all(
     {clientsWithProgress.length === 0 ? (
       <div class="glass p-16 text-center" id="empty-state-card">
         <p class="text-5xl mb-4">🏢</p>
-        <h3 class="text-white font-bold text-lg mb-2">Carteira vazia</h3>
-        <p class="text-slate-400 text-sm mb-6">Adicione seu primeiro cliente e os 12 checkpoints serão criados automaticamente!</p>
+        <h3 class="text-slate-800 font-bold text-lg mb-2">Carteira vazia</h3>
+        <p class="text-slate-500 text-sm mb-6">Adicione seu primeiro cliente e os 12 checkpoints serão criados automaticamente!</p>
         <button onclick="document.getElementById('add-client-modal').classList.remove('hidden')" class="btn-primary" id="open-first-client-modal">
           Adicionar Primeiro Cliente
         </button>
@@ -181,14 +181,14 @@ const clientsWithProgress = await Promise.all(
         {clientsWithProgress.map((client) => (
           <a href={`/clients/${client.id}`} class="client-card-link glass-hover p-6 block group">
             <div class="flex items-start gap-4 mb-4">
-              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0"
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold text-slate-800 flex-shrink-0"
                 style="background: linear-gradient(135deg, rgba(124,58,237,0.5), rgba(109,40,217,0.7));">
                 {client.name.charAt(0).toUpperCase()}
               </div>
               <div class="flex-1 min-w-0">
-                <h3 class="text-white font-semibold truncate">{client.name}</h3>
+                <h3 class="text-slate-800 font-semibold truncate">{client.name}</h3>
                 {client.sector && <p class="text-slate-500 text-xs mt-0.5">{client.sector}</p>}
-                <p class="text-slate-400 text-xs mt-1 truncate">Em: {client.currentStep}</p>
+                <p class="text-slate-500 text-xs mt-1 truncate">Em: {client.currentStep}</p>
               </div>
               <span class="text-slate-600 group-hover:text-brand-400 transition-colors">→</span>
             </div>
@@ -213,11 +213,11 @@ const clientsWithProgress = await Promise.all(
   <div id="add-client-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4"
     style="background: rgba(0,0,0,0.7); backdrop-filter: blur(4px);">
     <div class="glass w-full max-w-md animate-slide-up" style="border-color: rgba(124,58,237,0.3);">
-      <div class="p-6 border-b border-white/5 flex items-center justify-between">
-        <h2 class="text-white font-bold text-lg">Novo Cliente</h2>
+      <div class="p-6 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-slate-800 font-bold text-lg">Novo Cliente</h2>
         <button
           onclick="document.getElementById('add-client-modal').classList.add('hidden')"
-          class="text-slate-400 hover:text-white transition-colors text-xl leading-none"
+          class="text-slate-500 hover:text-slate-800 transition-colors text-xl leading-none"
           id="close-modal-btn"
         >✕</button>
       </div>
@@ -228,35 +228,35 @@ const clientsWithProgress = await Promise.all(
           </div>
         )}
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nome da Empresa *</label>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Nome da Empresa *</label>
           <input type="text" name="name" required class="input" placeholder="Ex: Tech Solutions Ltda" autocomplete="off" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Segmento</label>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Segmento</label>
           <input type="text" name="sector" class="input" placeholder="Ex: Tecnologia, Varejo, Saúde..." autocomplete="off" />
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Modelo de Roadmap Inicial</label>
-          <select name="roadmap_type" class="input w-full text-sm [&>option]:bg-slate-900 [&>option]:text-white">
-            <option value="default" class="bg-slate-900 text-white">Consultoria de RH (Padrão 12 Passos)</option>
-            <option value="empty" class="bg-slate-900 text-white" selected>Vazio (Totalmente Personalizado)</option>
-            <option value="onboarding_rh" class="bg-slate-900 text-white">Onboarding de Novos Colaboradores (90 Dias)</option>
-            <option value="sales_b2b" class="bg-slate-900 text-white">Máquina de Vendas B2B (Sales Ops)</option>
-            <option value="bpo_financeiro" class="bg-slate-900 text-white">Onboarding de BPO Financeiro (30 a 45 Dias)</option>
-            <option value="saas_impl" class="bg-slate-900 text-white">Sucesso do Cliente: Implantação (SaaS)</option>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Modelo de Roadmap Inicial</label>
+          <select name="roadmap_type" class="input w-full text-sm [&>option]:bg-slate-900 [&>option]:text-slate-800">
+            <option value="default" class="bg-slate-900 text-slate-800">Consultoria de RH (Padrão 12 Passos)</option>
+            <option value="empty" class="bg-slate-900 text-slate-800" selected>Vazio (Totalmente Personalizado)</option>
+            <option value="onboarding_rh" class="bg-slate-900 text-slate-800">Onboarding de Novos Colaboradores (90 Dias)</option>
+            <option value="sales_b2b" class="bg-slate-900 text-slate-800">Máquina de Vendas B2B (Sales Ops)</option>
+            <option value="bpo_financeiro" class="bg-slate-900 text-slate-800">Onboarding de BPO Financeiro (30 a 45 Dias)</option>
+            <option value="saas_impl" class="bg-slate-900 text-slate-800">Sucesso do Cliente: Implantação (SaaS)</option>
           </select>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">E-mail do Cliente *</label>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">E-mail do Cliente *</label>
           <input type="email" name="client_email" required class="input" placeholder="rh@empresa.com.br" autocomplete="off" />
         </div>
         
-        <div class="p-4 rounded-xl border border-white/5 bg-white/5 space-y-3">
-            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">Personalização da Marca</label>
+        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-3">
+            <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider">Personalização da Marca</label>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label class="block text-[10px] text-slate-500 font-medium mb-1">Cor Principal (Opcional)</label>
-                    <input type="color" name="primary_color" value="#7c3aed" class="w-full h-10 p-1 cursor-pointer rounded-lg bg-black/20 border border-white/5" />
+                    <input type="color" name="primary_color" value="#7c3aed" class="w-full h-10 p-1 cursor-pointer rounded-lg bg-black/20 border border-slate-200" />
                 </div>
                 <div>
                     <label class="block text-[10px] text-slate-500 font-medium mb-1">Logomarca da Empresa (Opcional)</label>
@@ -266,7 +266,7 @@ const clientsWithProgress = await Promise.all(
             <p class="text-[10px] text-slate-500 mt-1">O cliente verá esta cor e esta logo no painel (roadmap) dele.</p>
         </div>
         <div>
-          <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Senha Temporária *</label>
+          <label class="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Senha Temporária *</label>
           <input type="password" name="password" required minlength="6" class="input" placeholder="Mínimo 6 caracteres" autocomplete="new-password" />
           <p class="text-slate-600 text-xs mt-1">O cliente usará esta senha para acessar o roadmap</p>
         </div>

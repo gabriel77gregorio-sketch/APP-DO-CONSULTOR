@@ -1,0 +1,205 @@
+---
+export const prerender = false;
+import ConsultantLayout from '../../../layouts/ConsultantLayout.astro';
+import { supabase, supabaseAdmin } from '../../../lib/supabase';
+
+const { id } = Astro.params;
+if (!id) return Astro.redirect('/clients');
+
+const accessToken = Astro.cookies.get('sb-access-token')?.value ?? '';
+const refreshToken = Astro.cookies.get('sb-refresh-token')?.value ?? '';
+
+const { data: authData } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+const userId = authData?.session?.user?.id ?? '';
+
+const db = supabaseAdmin ?? supabase;
+const { data: profile } = await db.from('profiles').select('role').eq('id', userId).single();
+
+let clientQuery = db.from('clients').select('*').eq('id', id);
+if (profile?.role !== 'master') {
+  clientQuery = clientQuery.eq('consultant_id', userId);
+}
+const { data: client, error: clientError } = await clientQuery.single();
+
+if (clientError || !client) return Astro.redirect('/clients');
+
+let successMessage = '';
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action')?.toString();
+
+  if (action === 'save-settings') {
+    const client_email = formData.get('client_email')?.toString() || '';
+    const cc_emails_str = formData.get('cc_emails')?.toString() || '';
+    const cc_emails = cc_emails_str.split(',').map(e => e.trim()).filter(e => e);
+    
+    const notify_pending = formData.get('notify_pending') === 'on';
+    const notify_reminder = formData.get('notify_reminder') === 'on';
+    const notify_completion = formData.get('notify_completion') === 'on';
+    const use_custom_branding = formData.get('use_custom_branding') === 'on';
+
+    const { error } = await db.from('clients').update({
+      client_email,
+      cc_emails,
+      notify_pending,
+      notify_reminder,
+      notify_completion,
+      use_custom_branding
+    }).eq('id', id);
+    
+    if (!error) {
+      successMessage = 'Configurações atualizadas com sucesso!';
+      const { data: updatedClient } = await db.from('clients').select('*').eq('id', id).single();
+      if (updatedClient) Object.assign(client, updatedClient);
+    }
+  } else if (action === 'test-notification') {
+    await db.from('clients').update({ enviar_notificacao: true }).eq('id', id);
+    successMessage = 'Notificação disparada! O cliente deve receber em instantes.';
+  }
+}
+
+const { data: logsData } = await db.from('notification_logs')
+  .select('*')
+  .eq('client_id', id)
+  .order('created_at', { ascending: false })
+  .limit(15);
+---
+
+<ConsultantLayout title={`Configurações · ${client.name}`} activePage="clients">
+  <div class="p-4 md:p-8 animate-fade-in max-w-[100vw]">
+    <div class="flex items-center gap-4 mb-6 md:mb-8">
+      <a href={`/clients/${id}`} class="text-slate-500 hover:text-slate-800 transition-colors text-sm flex items-center gap-1">
+        ← Voltar ao Roadmap
+      </a>
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800">Canais de Comunicação</h1>
+        <p class="text-slate-500 text-sm mt-0.5">Gerencie os alertas e e-mails para {client.name}</p>
+      </div>
+    </div>
+
+    {successMessage && (
+      <div class="mb-6 px-4 py-3 rounded-xl text-green-700 text-sm font-medium bg-green-50 border border-green-200 flex justify-between items-center">
+        <span>✅ {successMessage}</span>
+      </div>
+    )}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      
+      <div class="lg:col-span-2 space-y-6">
+        <form method="POST" class="glass p-6 md:p-8 space-y-6">
+          <input type="hidden" name="action" value="save-settings" />
+          
+          <div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">Destinatários</h3>
+            <p class="text-slate-500 text-sm mb-4">Para quem os alertas e comunicados devem ser enviados.</p>
+            
+            <div class="space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">E-mail Principal</label>
+                <input type="email" name="client_email" value={client.client_email} class="input" required />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">E-mails em Cópia (CC)</label>
+                <input type="text" name="cc_emails" value={(client.cc_emails || []).join(', ')} class="input" placeholder="socio@empresa.com, gerente@empresa.com" />
+                <p class="text-[10px] text-slate-500 mt-1">Separe múltiplos e-mails por vírgula.</p>
+              </div>
+            </div>
+          </div>
+
+          <hr class="border-slate-200" />
+
+          <div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">Preferências de Notificação</h3>
+            <p class="text-slate-500 text-sm mb-4">Selecione quais eventos irão disparar um e-mail automaticamente.</p>
+            
+            <div class="space-y-3">
+              <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+                <input type="checkbox" name="notify_pending" checked={client.notify_pending !== false} class="w-5 h-5 accent-brand-500 text-brand-600 rounded" />
+                <div>
+                  <p class="text-sm font-semibold text-slate-800">Alertas de Novas Pendências</p>
+                  <p class="text-xs text-slate-500">Notificar o cliente toda vez que uma nova tarefa for atribuída.</p>
+                </div>
+              </label>
+
+              <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+                <input type="checkbox" name="notify_reminder" checked={client.notify_reminder} class="w-5 h-5 accent-brand-500 text-brand-600 rounded" />
+                <div>
+                  <p class="text-sm font-semibold text-slate-800">Lembretes de Vencimento</p>
+                  <p class="text-xs text-slate-500">Enviar alerta automático 24h antes do prazo final de uma tarefa.</p>
+                </div>
+              </label>
+
+              <label class="flex items-center gap-3 p-3 border border-slate-200 rounded-xl hover:bg-slate-50 transition cursor-pointer">
+                <input type="checkbox" name="notify_completion" checked={client.notify_completion} class="w-5 h-5 accent-brand-500 text-brand-600 rounded" />
+                <div>
+                  <p class="text-sm font-semibold text-slate-800">Relatório de Conclusão</p>
+                  <p class="text-xs text-slate-500">Enviar um resumo quando um módulo do roadmap atingir 100%.</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <hr class="border-slate-200" />
+
+          <div>
+             <div class="flex gap-2 items-center mb-1">
+                 <h3 class="text-lg font-bold text-slate-800">Branding e Whitelabel</h3>
+                 <span class="bg-amber-100 text-amber-700 text-[10px] uppercase font-bold px-2 py-0.5 rounded-full">Pro</span>
+             </div>
+             <p class="text-slate-500 text-sm mb-4">Defina qual identidade visual aparecerá nos comunicados desse cliente.</p>
+             <label class="flex items-center gap-3 p-3 border border-brand-200 bg-brand-50 rounded-xl cursor-pointer">
+                <input type="checkbox" name="use_custom_branding" checked={client.use_custom_branding} class="w-5 h-5 accent-brand-500 text-brand-600 rounded" />
+                <div>
+                  <p class="text-sm font-semibold text-brand-800">Usar Logo da minha Consultoria</p>
+                  <p class="text-xs text-brand-600/80">Ocultar marca padrão e enviar e-mails personalizados com seu branding.</p>
+                </div>
+              </label>
+          </div>
+
+          <div class="pt-4 flex justify-end gap-3">
+            <button type="submit" class="btn-primary">Salvar Preferências</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="space-y-6">
+        <div class="glass p-6">
+          <h3 class="text-slate-800 font-bold mb-2">🔔 Disparo Manual</h3>
+          <p class="text-slate-500 text-sm mb-4">Caso deseje forçar o envio de um e-mail de "Atualização de Roadmap" agora mesmo com as mudanças recentes.</p>
+          <form method="POST" onsubmit="return confirm('Isso enviará um e-mail real para o cliente. Continuar?')">
+             <input type="hidden" name="action" value="test-notification" />
+             <button type="submit" class="btn-ghost w-full justify-center border-brand-200 text-brand-600 hover:bg-brand-50 hover:border-brand-300">Disparar Notificação</button>
+          </form>
+        </div>
+
+        <div class="glass p-6">
+          <h3 class="text-slate-800 font-bold mb-4">📜 Histórico de Disparos</h3>
+          {logsData && logsData.length > 0 ? (
+            <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+              {logsData.map(log => (
+                <div class="flex flex-col border-l-2 pl-3 py-1" style={`border-color: ${log.status === 'success' ? '#22c55e' : '#ef4444'}`}>
+                  <div class="flex justify-between items-center mb-1">
+                    <span class={`text-[10px] uppercase font-bold px-2 py-0.5 rounded ${log.status === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                      {log.status === 'success' ? 'Enviado' : 'Erro'}
+                    </span>
+                    <span class="text-[10px] text-slate-500">
+                      {new Date(log.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <span class="text-xs font-semibold text-slate-700 capitalize">{log.event_type.replace(/_/g, ' ')}</span>
+                  {log.error_message && (
+                     <span class="text-[10px] text-red-500 mt-1 max-w-[200px] truncate" title={log.error_message}>{log.error_message}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p class="text-xs text-slate-500 text-center py-6 bg-slate-50 rounded-xl border border-dashed border-slate-200">Nenhum disparo registrado ainda.</p>
+          )}
+        </div>
+      </div>
+
+    </div>
+  </div>
+</ConsultantLayout>

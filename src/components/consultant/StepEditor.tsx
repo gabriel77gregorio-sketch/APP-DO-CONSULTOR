@@ -169,7 +169,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                             ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                             : step.status === 'current'
                                 ? 'border border-blue-500/40 text-blue-400'
-                                : 'border border-white/10 text-slate-600'
+                                : 'border border-slate-300 text-slate-600'
                         }`}
                         style={step.status === 'current' ? { background: 'rgba(59,130,246,0.12)' } : {}}>
                         {step.status === 'completed' ? '✓' : step.step_number}
@@ -178,15 +178,15 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${step.status === 'locked' ? 'text-slate-600' : 'text-slate-400'}`}
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${step.status === 'locked' ? 'text-slate-600' : 'text-slate-500'}`}
                                 style={{ background: 'rgba(255,255,255,0.04)' }}>
                                 {step.month_label}
                             </span>
                         </div>
-                        <h3 className={`font-semibold text-sm sm:text-base leading-snug ${step.status === 'locked' ? 'text-slate-600' : 'text-white'}`}>
+                        <h3 className={`font-semibold text-sm sm:text-base leading-snug ${step.status === 'locked' ? 'text-slate-600' : 'text-slate-800'}`}>
                             Checkpoint {step.step_number}: {step.title}
                         </h3>
-                        <p className={`text-xs mt-1 hidden sm:block ${step.status === 'locked' ? 'text-slate-700' : 'text-slate-400'}`}>
+                        <p className={`text-xs mt-1 hidden sm:block ${step.status === 'locked' ? 'text-slate-700' : 'text-slate-500'}`}>
                             {step.description}
                         </p>
                     </div>
@@ -208,7 +208,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
 
             {/* Conteúdo expansível */}
             {isOpen && (
-                <div className="border-t border-white/5 p-5 space-y-6 animate-fade-in">
+                <div className="border-t border-slate-200 p-5 space-y-6 animate-fade-in">
                     {/* Erro de salvamento */}
                     {saveError && (
                         <div className="px-4 py-2 rounded-xl text-red-400 text-xs" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
@@ -218,7 +218,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
 
                     {/* Configurações do Checkpoint */}
                     <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
                             ⚙️ Identificação do Checkpoint
                         </h4>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
@@ -258,7 +258,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
 
                     {/* Checkpoints */}
                     <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
                             ✓ Checkpoints da Reunião
                         </h4>
                         <div className="space-y-2 mb-3">
@@ -275,7 +275,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                                             onChange={() => toggleCheckmark(idx)}
                                             className="w-4 h-4 accent-purple-500 flex-shrink-0"
                                         />
-                                        <span className={`text-sm ${check.checked ? 'line-through text-slate-500' : 'text-slate-300'}`}>
+                                        <span className={`text-sm ${check.checked ? 'line-through text-slate-500' : 'text-slate-600'}`}>
                                             {check.label}
                                         </span>
                                     </label>
@@ -301,7 +301,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                             <button 
                                 onClick={addCheckmark}
                                 disabled={!newCheckmark.trim()}
-                                className="btn-primary text-sm px-4 whitespace-nowrap bg-white/5 hover:bg-brand-500/20 text-brand-400 border-none rounded-xl"
+                                className="btn-primary text-sm px-4 whitespace-nowrap bg-slate-50 hover:bg-brand-500/20 text-brand-400 border-none rounded-xl"
                             >
                                 + Add
                             </button>
@@ -310,7 +310,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
 
                     {/* Central de Pendências (Tasks) */}
                     <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
                             📋 Pendências para o Cliente
                         </h4>
                         <div className="space-y-2 mb-3">
@@ -329,7 +329,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                                         onChange={() => toggleTask(task.id, task.completed)}
                                         className="w-4 h-4 accent-amber-500 flex-shrink-0"
                                     />
-                                    <span className={`text-sm flex-1 ${task.completed ? 'line-through text-slate-600' : 'text-slate-300'}`}>
+                                    <span className={`text-sm flex-1 ${task.completed ? 'line-through text-slate-600' : 'text-slate-600'}`}>
                                         {task.description}
                                         {task.due_date && (
                                             <span className="block text-[10px] text-amber-500/70 mt-0.5">
@@ -370,7 +370,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
                                     type="date"
                                     value={newDueDate}
                                     onChange={(e) => setNewDueDate(e.target.value)}
-                                    className="input py-1 px-2 text-[10px] w-auto bg-white/5 border-white/10"
+                                    className="input py-1 px-2 text-[10px] w-auto bg-slate-50 border-slate-300"
                                 />
                             </div>
                         </div>
@@ -378,7 +378,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
 
                     {/* Notas da reunião */}
                     <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
                             📝 Notas da Reunião
                         </h4>
                         <textarea
@@ -393,7 +393,7 @@ export default function StepEditor({ step: initialStep, tasks: initialTasks, isI
 
                     {/* URL de evidência */}
                     <div>
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
+                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
                             🔗 Link de Entrega (Drive, Notion, etc)
                         </h4>
                         <input
